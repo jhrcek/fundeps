@@ -1,14 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
-
 module Main where
 
 import qualified Control.Foldl                     as F
 import           Control.Monad.Trans.State.Strict  (State)
 import qualified Control.Monad.Trans.State.Strict  as State
-import           Data.Foldable                     (traverse_)
+import           Data.Foldable                     (for_, traverse_)
 import qualified Data.Graph.Inductive.Basic        as GB
 import qualified Data.Graph.Inductive.Graph        as G
 import           Data.Graph.Inductive.PatriciaTree (Gr)
@@ -19,15 +17,22 @@ import           Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir),
                                                     Label (StrLabel),
                                                     RankDir (FromLeft))
 import qualified Data.GraphViz.Commands            as GvCmd
-import           Data.List                         (intercalate)
+import           Data.List.NonEmpty                (NonEmpty ((:|)))
 import           Data.Map.Strict                   (Map)
 import qualified Data.Map.Strict                   as Map
+import           Data.Maybe                        (fromMaybe)
+import           Data.Set                          (Set)
+import qualified Data.Set                          as Set
 import qualified Data.Text                         as Text
+import qualified Data.Text.IO                      as Text
 import qualified Data.Text.Lazy                    as LText
 import           Terminal                          (Item (..), pickAnItem)
 import           Turtle                            hiding (f, g, sortOn)
 
--- TODO: option to filter nodes to exclude external packages
+-- TODO clean up configuration options
+-- TODO filter nodes to exclude external deps (proly only makes sense for deps, not reverse deps)
+-- TODO option to pick TopDown/LeftRight RankDir
+-- TODO option to remove duplicate edges (GraphViz.setStrictness)
 
 main :: IO ()
 main = do
@@ -36,28 +41,30 @@ main = do
   mode <- pickAnItem browsingModes
   terminalUI fcg mode
 
-
 drawInCanvas :: Gr Decl () -> IO ()
 drawInCanvas gr =
-  let dotGr = GraphViz.graphToDot gvParams gr
+  let dotGr =
+        -- TODO make this configurable
+        --GraphViz.setStrictness True $
+          GraphViz.graphToDot gvParams gr
   in GvCmd.runGraphvizCanvas' dotGr GvCmd.Xlib
 
-showReverseDependencies :: FunctionCallGraph -> G.Node -> IO ()
+showReverseDependencies :: FunctionCallGraph -> [G.Node] -> IO ()
 showReverseDependencies = showDfsSubgraph GB.grev
 
-showDependencies :: FunctionCallGraph -> G.Node -> IO ()
+showDependencies :: FunctionCallGraph -> [G.Node] -> IO ()
 showDependencies = showDfsSubgraph id
 
-showDfsSubgraph :: (Graph -> Graph) -> FunctionCallGraph -> G.Node -> IO ()
-showDfsSubgraph preprocessGraph fcg nodeId = do
+showDfsSubgraph :: (Graph -> Graph) -> FunctionCallGraph -> [G.Node] -> IO ()
+showDfsSubgraph preprocessGraph fcg nodeIds = do
   let graph = preprocessGraph $ _graph fcg
-      reachableNodeIds = DFS.dfs [nodeId] graph
+      reachableNodeIds = DFS.dfs nodeIds graph
       subGr = G.subgraph reachableNodeIds $ _graph fcg
   drawInCanvas subGr
 
 gvParams :: GraphViz.GraphvizParams G.Node Decl () () Decl
 gvParams = GraphViz.nonClusteredParams
-  { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.pack $ formatNode WithoutPackage decl]
+  { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode WithoutPackage decl]
   , GraphViz.globalAttributes =
       [ GraphViz.NodeAttrs [shape BoxShape]
       , GraphViz.GraphAttrs [RankDir FromLeft]
@@ -67,19 +74,19 @@ gvParams = GraphViz.nonClusteredParams
 data NodeFormat
   = Full
   | FunctionName
-  | FunctionNameIfInModule String
+  | FunctionNameIfInModule Text
   | WithoutPackage
 
 
-formatNode :: NodeFormat -> Decl -> String
+formatNode :: NodeFormat -> Decl -> Text
 formatNode fmt (p,m,f) = case fmt of
   FunctionName -> f
   FunctionNameIfInModule desiredModule ->
-      if m == desiredModule then f else unlines [p, m, f]
-  Full -> intercalate ":" [p, m, f]
-  WithoutPackage -> unlines [m,f]
+      if m == desiredModule then f else Text.unlines [p, m, f]
+  Full -> Text.intercalate ":" [p, m, f]
+  WithoutPackage -> Text.unlines [m,f]
 
-type Decl = (String, String, String)
+type Decl = (Text, Text, Text)
 type Edge = (Decl, Decl)
 
 loadEdges :: Shell Edge
@@ -91,46 +98,50 @@ parseLine :: Line -> Edge
 parseLine = read @Edge . Text.unpack . lineToText
 
 processNode :: Decl -> State FunctionCallGraph ()
-processNode decl =
-  State.modify' $ \(FCG oldMap oldGraph) ->
-    let newMap = Map.alter (Just . maybe (Map.size oldMap) id) decl oldMap
-        nodeId = newMap Map.! decl
-        newGraph = if G.gelem nodeId oldGraph then oldGraph else G.insNode (nodeId, decl) oldGraph
-    in FCG newMap newGraph
+processNode decl@(_,_,fname) =
+  State.modify' $ \(FCG decls funs graph) ->
+    let newDecls = Map.alter (Just . fromMaybe (Map.size decls)) decl decls
+        newFuns = Map.insertWith (<>) fname (Set.singleton decl) funs
+        nodeId = newDecls Map.! decl
+        newGraph = if G.gelem nodeId graph then graph else G.insNode (nodeId, decl) graph
+    in FCG newDecls newFuns newGraph
 
 processEdges :: Edge -> State FunctionCallGraph ()
 processEdges (a,b) = do
   processNode a
   processNode b
-  State.modify' $ \(FCG m g) ->
-    let fromId = m Map.! a
-        toId = m Map.! b
+  State.modify' $ \(FCG decls funs g) ->
+    let fromId = decls Map.! a
+        toId = decls Map.! b
         newGraph = G.insEdge (fromId, toId, ()) g
-    in FCG m newGraph
+    in FCG decls funs newGraph
 
 data FunctionCallGraph = FCG
-  { _labelToNode :: Map Decl G.Node
-  , _graph       :: Graph
+  { _declToNode :: Map Decl G.Node -- ^ map declarations to the node ID used in the graph
+  -- Invariant: function names in this map are exactly those that occur in the _declToNode
+  , _functionNameToNodes :: Map Text {-TODO newtype this string to FunctionName -} (Set Decl) -- ^ Map name of function to the set of declarations that have this function name
+  , _graph      :: Graph
   } deriving Show
 
 type Graph = Gr Decl ()
 
 buildFunctionCallGraph :: IO FunctionCallGraph
 buildFunctionCallGraph = do
-  stringEdges <- fold loadEdges F.list
-  pure $ State.execState (traverse_ processEdges stringEdges) (FCG Map.empty G.empty)
-
+    stringEdges <- fold loadEdges F.list
+    pure $ State.execState
+        (traverse_ processEdges stringEdges)
+        (FCG Map.empty Map.empty G.empty)
 
 -- TERMINAL UI STUFF
 
-green, red, reset :: String
+green, red, reset :: Text
 green = "\ESC[32m"
 red = "\ESC[31m"
 reset = "\ESC[0m"
 
-cliPrompt, cliWarn :: String -> IO ()
-cliPrompt msg = putStrLn $ green <> msg <> reset
-cliWarn msg = putStrLn $ red <> msg <> reset
+cliPrompt, cliWarn :: Text -> IO ()
+cliPrompt msg = Text.putStrLn $ green <> msg <> reset
+cliWarn msg = Text.putStrLn $ red <> msg <> reset
 
 reportSize :: FunctionCallGraph -> IO ()
 reportSize fcg =
@@ -143,30 +154,68 @@ terminalUI fcg mode = case mode of
     Dependencies        -> forever (loop showDependencies)
     ReverseDependencies -> forever (loop showReverseDependencies)
   where
-
     loop showDeps = do
-      cliPrompt "Enter name of function:"
-      searchedFunction <- getLine
-      let matchingMap = Map.filterWithKey (\(_p,_m,f) _nid -> searchedFunction == f) $ _labelToNode fcg
-      case Map.toList matchingMap of
-        [] -> do
-          cliWarn $ "Sorry, there's no function named '" <> searchedFunction <> "'! Try again."
-        [(_decl, nodeId)] -> do
-          showDeps fcg nodeId
-        matches -> do
-          cliPrompt $ "There are multiple functions named like this. Which one do you want?"
-          (_, nodeId) <- pickAnItem matches
-          showDeps fcg nodeId
+      cliPrompt "Enter one or more (comma-separated) function names:"
+      lookupResults <- processQuery fcg <$> Text.getLine
+      unless (null lookupResults) $ case partitionLookupResults lookupResults of
+        Left (notFounds, invalidQueries) -> do
+          for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
+          for_ invalidQueries $ \query -> cliWarn $ "The following was not valid query: " <> query <> ". Valid queries have the form `functionName` or `package:module:functionName`"
+        Right (foundIds1, ambiguous) -> do
+          foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
+          showDeps fcg $ foundIds1 <> foundIds2
+
+partitionLookupResults :: [LookupResult] -> Either ([Text],[Text]) ([G.Node], [NonEmpty Decl])
+partitionLookupResults = foldr step (Right ([],[]))
+  where
+    step r acc@(Left (notFounds, invalidQueries)) = case r of
+      InvalidQuery q -> Left (notFounds, q:invalidQueries)
+      NotFound t     -> Left (t:notFounds, invalidQueries)
+      FoundUnique _  -> acc
+      Ambiguous _    -> acc
+    step r (Right (founds, ambiguous)) = case r of
+      InvalidQuery q  -> Left ([],[q])
+      NotFound t      -> Left ([t], [])
+      FoundUnique nid -> Right (nid:founds, ambiguous)
+      Ambiguous a     -> Right (founds, a:ambiguous)
+
+processQuery :: FunctionCallGraph -> Text -> [LookupResult]
+processQuery fcg searchText =
+    fmap (lookupFunctionId fcg) searchTerms
+  where
+    searchTerms = filter (not . Text.null) . fmap Text.strip $ Text.splitOn "," searchText
+
+lookupFunctionId :: FunctionCallGraph -> Text -> LookupResult
+lookupFunctionId (FCG decls funs _) searchText =
+  case Text.splitOn ":" searchText of
+    [fname] -> case Map.lookup fname funs of
+      Nothing -> NotFound fname
+      Just declSet -> case Set.toList declSet of
+        [] -> error $ "WTF?! Invariant broken: set of declarations with function name '" <> Text.unpack fname <> "'' was empty"
+        [decl] -> case Map.lookup decl decls of
+          Nothing     -> error $ "WTF? Invariant broken: '" <> Text.unpack fname <> "' was in function name map, but not in decl map"
+          Just nodeId -> FoundUnique nodeId
+        m:ore -> Ambiguous (m:|ore)
+    [p,m,f] -> case Map.lookup (p,m,f) decls of
+      Nothing     -> NotFound $ formatNode Full (p,m,f)
+      Just nodeId -> FoundUnique nodeId
+    _ -> InvalidQuery searchText
+
+data LookupResult
+  = FoundUnique G.Node
+  | InvalidQuery Text
+  | NotFound Text
+  | Ambiguous (NonEmpty Decl)
 
 data BrowsingMode = Everything | Dependencies | ReverseDependencies
 
-browsingModes :: [BrowsingMode]
-browsingModes = [Everything, Dependencies, ReverseDependencies]
+browsingModes :: NonEmpty BrowsingMode
+browsingModes = Everything :| [Dependencies, ReverseDependencies]
 
 instance Item BrowsingMode where
   showItem Everything          = "Everything"
   showItem Dependencies        = "Dependencies"
   showItem ReverseDependencies = "Reverse Dependencies"
 
-instance Item (Decl, G.Node) where
-  showItem (decl, _) = formatNode Full decl
+instance Item Decl where
+  showItem decl = Text.unpack $ formatNode Full decl

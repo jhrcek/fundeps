@@ -1,9 +1,10 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Terminal
   ( Item(..)
   , pickAnItem
   ) where
-{-# LANGUAGE OverloadedStrings #-}
 
+import qualified Data.List.NonEmpty as NE
 import qualified Brick.AttrMap        as Attr
 import qualified Brick.Main           as Brick
 import           Brick.Types          (Widget)
@@ -42,7 +43,6 @@ appHandleEvent l (T.VtyEvent e) =
         V.EvKey V.KEsc [] -> Brick.halt l
 
         ev -> L.handleListEvent ev l >>=  Brick.continue
-    where
 appHandleEvent l _ = Brick.continue l
 
 listDrawElement :: Item a => Bool -> a -> Widget ()
@@ -68,9 +68,9 @@ pickItemApp = Brick.App
   , Brick.appAttrMap = const appAttrMap
   }
 
-pickAnItem :: Item a => [a] -> IO a
+pickAnItem :: Item a => NE.NonEmpty a -> IO a
 pickAnItem items = do
-  mItem <- L.listSelectedElement <$> Brick.defaultMain pickItemApp (initList items)
+  mItem <- L.listSelectedElement <$> Brick.defaultMain pickItemApp (initList $ NE.toList items)
   case mItem of
     Nothing -> error "TODO!"
     Just (_, item) -> pure item
