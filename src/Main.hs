@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications  #-}
 module Main where
 
 import qualified Control.Foldl                     as F
@@ -79,14 +78,19 @@ data NodeFormat
 
 
 formatNode :: NodeFormat -> Decl -> Text
-formatNode fmt (p,m,f) = case fmt of
+formatNode fmt (Decl p m f) = case fmt of
   FunctionName -> f
   FunctionNameIfInModule desiredModule ->
       if m == desiredModule then f else Text.unlines [p, m, f]
   Full -> Text.intercalate ":" [p, m, f]
   WithoutPackage -> Text.unlines [m,f]
 
-type Decl = (Text, Text, Text)
+data Decl = Decl
+  { _decl_package  :: Text
+  , _decl_module   :: Text
+  , _decl_function :: Text
+  } deriving (Show, Eq, Ord)
+
 type Edge = (Decl, Decl)
 
 loadEdges :: Shell Edge
@@ -95,10 +99,12 @@ loadEdges = parseLine <$> inshell "cat *.functionUsages" empty
 
 
 parseLine :: Line -> Edge
-parseLine = read @Edge . Text.unpack . lineToText
+parseLine line = (Decl p1 m1 f1 ,Decl  p2 m2 f2)
+  where
+    ((p1,m1,f1),(p2,m2,f2)) =  read . Text.unpack $ lineToText line
 
 processNode :: Decl -> State FunctionCallGraph ()
-processNode decl@(_,_,fname) =
+processNode decl@(Decl _ _ fname) =
   State.modify' $ \(FCG decls funs graph) ->
     let newDecls = Map.alter (Just . fromMaybe (Map.size decls)) decl decls
         newFuns = Map.insertWith (<>) fname (Set.singleton decl) funs
@@ -196,9 +202,11 @@ lookupFunctionId (FCG decls funs _) searchText =
           Nothing     -> error $ "WTF? Invariant broken: '" <> Text.unpack fname <> "' was in function name map, but not in decl map"
           Just nodeId -> FoundUnique nodeId
         m:ore -> Ambiguous (m:|ore)
-    [p,m,f] -> case Map.lookup (p,m,f) decls of
-      Nothing     -> NotFound $ formatNode Full (p,m,f)
-      Just nodeId -> FoundUnique nodeId
+    [p,m,f] ->
+      let decl = Decl p m f in
+      case Map.lookup decl decls of
+        Nothing     -> NotFound $ formatNode Full decl
+        Just nodeId -> FoundUnique nodeId
     _ -> InvalidQuery searchText
 
 data LookupResult
