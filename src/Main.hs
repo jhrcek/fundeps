@@ -195,7 +195,13 @@ terminalUI fcg mode = case mode of
       unless (null lookupResults) $ case partitionLookupResults lookupResults of
         Left (notFounds, invalidQueries) -> do
           for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
-          for_ invalidQueries $ \query -> cliWarn $ "The following was not valid query: " <> query <> ". Valid queries have the form `functionName` or `package:module:functionName`"
+          for_ invalidQueries $ \query -> cliWarn $ Text.unlines
+              [ "The following was not valid query: " <> query <> "."
+              , "Valid queries have one of these forms"
+              , "  - function"
+              , "  - module:function"
+              , "  - package:module:function"
+              ]
         Right (foundIds1, ambiguous) -> do
           foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
           showDeps fcg $ foundIds1 <> foundIds2
@@ -226,6 +232,8 @@ processQuery fcg searchText =
 lookupFunctionId :: FunctionCallGraph -> Text -> LookupResult
 lookupFunctionId (FCG decls funs _) searchText =
   case Text.splitOn ":" searchText of
+    [p,m,f] -> lookupUnique (Decl p m f)
+    [m,f] -> lookupUnique (Decl "" m f)
     [fname] -> case Map.lookup fname funs of
       Nothing -> NotFound fname
       Just declSet -> case Set.toList declSet of
@@ -234,12 +242,11 @@ lookupFunctionId (FCG decls funs _) searchText =
           Nothing     -> error $ "WTF? Invariant broken: '" <> Text.unpack fname <> "' was in function name map, but not in decl map"
           Just nodeId -> FoundUnique nodeId
         m:ore -> Ambiguous (m:|ore)
-    [p,m,f] ->
-      let decl = Decl p m f in
-      case Map.lookup decl decls of
-        Nothing     -> NotFound $ formatNode Full decl
-        Just nodeId -> FoundUnique nodeId
     _ -> InvalidQuery searchText
+  where
+    lookupUnique decl = case Map.lookup decl decls of
+      Nothing     -> NotFound $ formatNode Full decl
+      Just nodeId -> FoundUnique nodeId
 
 
 data LookupResult
