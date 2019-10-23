@@ -6,15 +6,16 @@ module Terminal.Commands
   , showHelp
   , showSettings
   , typeHelp
+  , commandSuggestions
   ) where
 
 import           Data.GraphViz.Attributes.Complete (RankDir (..))
 import           Data.Text                         (Text)
 import qualified Data.Text                         as Text
+import qualified Data.Text.IO                      as Text
 import           Settings
+import           Turtle                            (repr)
 
--- TODO: arrow up / down should scroll through command history
--- TODO: tab completion
 -- TODO: show warning when searching for external functions, but include.external.packages is false
 
 typeHelp :: Text
@@ -26,7 +27,7 @@ parseCommand text = case Text.words text of
     (":show":_)    -> Right ShowSettings
     (":set":other) -> AdjustSettings <$> parseAdjustSetting other
     (word:_) | Text.isPrefixOf ":" text -> Left $ word <> " is not a valid command. " <> typeHelp
-             | otherwise -> Right $ Query text
+             | otherwise                -> Right $ Query text
     [] -> Left typeHelp
 
 parseAdjustSetting :: [Text] -> Either Text AdjustSetting
@@ -34,7 +35,7 @@ parseAdjustSetting xs = case xs of
   ["include.external.packages", x] -> IncludeExternalPackages <$> parseBool x
   ["allow.multi.edges", x]         -> AllowMultiEdges <$> parseBool x
   ["rank.dir", x]                  -> SetRankDir <$> parseRankDir x
-  ["dependency.mode", x]             -> SetDependencyMode <$> parseDependencyMode x
+  ["dependency.mode", x]           -> SetDependencyMode <$> parseDependencyMode x
   _                                -> Left $ "'" <> Text.unwords xs <> "' is not recognized setting. " <> typeHelp
 
 parseRankDir :: Text -> Either Text RankDir
@@ -47,17 +48,17 @@ parseRankDir word = case word of
 
 parseBool :: Text -> Either Text Bool
 parseBool word = case word of
-  "True" -> Right True
+  "True"  -> Right True
   "False" -> Right False
-  _ -> Left $ word <> " is not a valid Bool. Valid values are: True|False"
+  _       -> Left $ word <> " is not a valid Bool. Valid values are: True|False"
 
 parseDependencyMode :: Text -> Either Text DependencyMode
 parseDependencyMode word = case word of
   "Forward" -> Right Forward
   "Reverse" -> Right Reverse
-  _ -> Left $ word <> "is not a valid browsing mode. Valid values are: Forward|Reverse"
+  _         -> Left $ word <> "is not a valid browsing mode. Valid values are: Forward|Reverse"
 
-showRankDir :: RankDir -> String
+showRankDir :: RankDir -> Text
 showRankDir rd = case rd of
     FromRight  -> "RL"
     FromLeft   -> "LR"
@@ -88,10 +89,10 @@ adjustSettings a settings =
 
 showSettings :: Settings -> IO ()
 showSettings settings =
-  putStrLn $ unlines
-    [ "allow.multi.edges = " <> show (_allowMultiEdges settings)
-    , "dependency.mode = " <> show (_dependencyMode settings)
-    , "include.external.packages = " <> show (_includeExternalPackages settings)
+  Text.putStrLn $ Text.unlines
+    [ "allow.multi.edges = " <> repr (_allowMultiEdges settings)
+    , "dependency.mode = " <> repr (_dependencyMode settings)
+    , "include.external.packages = " <> repr (_includeExternalPackages settings)
     , "rank.dir = " <> showRankDir (_rankDir settings)
     ]
 
@@ -107,3 +108,14 @@ showHelp = putStrLn $ unlines
  , "     include.external.packages  True|False          Include functions from external packages (like elm/core)?"
  , "     rank.dir                   LR|RL|TB|BT         GraphViz rank direction"
  ]
+
+commandSuggestions :: [String]
+commandSuggestions =
+  [ ":help"
+  , ":show"
+  , ":set"
+  , "allow.multi.edges"
+  , "dependency.mode"
+  , "include.external.packages"
+  , "rank.dir"
+  ]

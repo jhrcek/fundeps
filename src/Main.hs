@@ -15,6 +15,7 @@ import           Data.GraphViz.Attributes          (Shape (BoxShape), shape)
 import           Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir),
                                                     Label (StrLabel))
 import qualified Data.GraphViz.Commands            as GvCmd
+import qualified Data.List                         as List
 import           Data.List.NonEmpty                (NonEmpty ((:|)))
 import           Data.Map.Strict                   (Map)
 import qualified Data.Map.Strict                   as Map
@@ -24,9 +25,9 @@ import qualified Data.Set                          as Set
 import qualified Data.Text                         as Text
 import qualified Data.Text.IO                      as Text
 import qualified Data.Text.Lazy                    as LText
-import qualified System.IO                         as IO
+import qualified System.Console.Haskeline          as Repl
 import           Terminal                          (Item (..), pickAnItem)
-import           Turtle                            hiding (f, g, sortOn)
+import           Turtle                            hiding (f, g, prefix, sortOn)
 
 import           Settings                          (DependencyMode (..),
                                                     NodeFormat (..),
@@ -162,37 +163,42 @@ reportSize fcg =
 terminalUI :: FunctionCallGraph -> Settings -> IO ()
 terminalUI fcg settings_ = do
     Text.putStrLn Cmd.typeHelp
-    loop settings_
+    let completionFunc = buildCompletionFunction fcg
+    let settingsWithCompletion = Repl.setComplete completionFunc Repl.defaultSettings
+    Repl.runInputT settingsWithCompletion $ loop settings_
   where
+    loop :: Settings -> Repl.InputT IO ()
     loop settings = do
-      Text.putStr "> "
-      IO.hFlush IO.stdout
-      line <- Text.getLine
-      case Cmd.parseCommand line of
-        Left badCommandError -> cliWarn badCommandError >> loop settings
-        Right command -> case command of
-          Cmd.AdjustSettings change ->
-            let newSettings = Cmd.adjustSettings change settings
-            in loop newSettings
-          Cmd.Query query -> processQuery query >> loop settings
-          Cmd.ShowSettings -> Cmd.showSettings settings >> loop settings
-          Cmd.ShowHelp -> Cmd.showHelp >> loop settings
-      where
-        processQuery query = do
-          let lookupResults = parseQuery fcg query
-          unless (null lookupResults) $ case partitionLookupResults lookupResults of
-            Left (notFounds, invalidQueries) -> do
-              for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
-              for_ invalidQueries $ \q -> cliWarn $ Text.unlines
-                  [ "The following was not valid query: " <> q <> "."
-                  , "Valid queries have one of these forms"
-                  , "  - function"
-                  , "  - module:function"
-                  , "  - package:module:function"
-                  ]
-            Right (foundIds1, ambiguous) -> do
-              foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
-              showDfsSubgraph fcg settings $ foundIds1 <> foundIds2
+      minput <- Repl.getInputLine "> "
+      case minput of
+        Nothing -> loop settings
+        Just line ->
+          case Cmd.parseCommand (Text.pack line) of
+            Left badCommandError -> liftIO (cliWarn badCommandError) >> loop settings
+            Right command -> case command of
+              Cmd.AdjustSettings change ->
+                let newSettings = Cmd.adjustSettings change settings
+                in loop newSettings
+              Cmd.Query query -> liftIO (processQuery query) >> loop settings
+              Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
+              Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
+          where
+            processQuery :: Text -> IO ()
+            processQuery query = do
+              let lookupResults = parseQuery fcg query
+              unless (null lookupResults) $ case partitionLookupResults lookupResults of
+                Left (notFounds, invalidQueries) -> do
+                  for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
+                  for_ invalidQueries $ \q -> cliWarn $ Text.unlines
+                      [ "The following was not valid query: " <> q <> "."
+                      , "Valid queries have one of these forms"
+                      , "  - function"
+                      , "  - module:function"
+                      , "  - package:module:function"
+                      ]
+                Right (foundIds1, ambiguous) -> do
+                  foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
+                  showDfsSubgraph fcg settings $ foundIds1 <> foundIds2
 
 
 partitionLookupResults :: [LookupResult] -> Either ([Text],[Text]) ([G.Node], [NonEmpty Decl])
@@ -221,11 +227,11 @@ lookupFunctionId :: FunctionCallGraph -> Text -> LookupResult
 lookupFunctionId (FCG decls funs _) searchText =
   case Text.splitOn ":" searchText of
     [p,m,f] -> lookupUnique (Decl p m f)
-    [m,f] -> lookupUnique (Decl "" m f)
+    [m,f]   -> lookupUnique (Decl "" m f)
     [fname] -> case Map.lookup fname funs of
-      Nothing -> NotFound fname
+      Nothing      -> NotFound fname
       Just declSet -> case Set.toList declSet of
-        [] -> error $ "WTF?! Invariant broken: set of declarations with function name '" <> Text.unpack fname <> "'' was empty"
+        []     -> error $ "WTF?! Invariant broken: set of declarations with function name '" <> Text.unpack fname <> "'' was empty"
         [decl] -> case Map.lookup decl decls of
           Nothing     -> error $ "WTF? Invariant broken: '" <> Text.unpack fname <> "' was in function name map, but not in decl map"
           Just nodeId -> FoundUnique nodeId
@@ -235,6 +241,18 @@ lookupFunctionId (FCG decls funs _) searchText =
     lookupUnique decl = case Map.lookup decl decls of
       Nothing     -> NotFound $ formatNode Full decl
       Just nodeId -> FoundUnique nodeId
+
+buildCompletionFunction :: FunctionCallGraph -> Repl.CompletionFunc IO
+buildCompletionFunction fcg = Repl.completeWord Nothing " " lookupCompletions
+  where
+    fullyQualifiedSuggestions = fmap (Text.unpack . formatNode Full) . Map.keys $ _declToNode fcg
+
+    functionNameSuggestions = fmap Text.unpack . Map.keys $ _functionNameToNodes fcg
+
+    lookupCompletions prefix = pure
+      . fmap Repl.simpleCompletion
+      . filter (\suggestion -> prefix `List.isPrefixOf` suggestion)
+      $ Cmd.commandSuggestions <> fullyQualifiedSuggestions <> functionNameSuggestions
 
 
 data LookupResult

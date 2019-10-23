@@ -27,6 +27,7 @@ executable fundeps
                        fgl,
                        foldl,
                        graphviz,
+                       haskeline,
                        microlens,
                        text,
                        transformers,

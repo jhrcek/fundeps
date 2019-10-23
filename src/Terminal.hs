@@ -4,7 +4,6 @@ module Terminal
   , pickAnItem
   ) where
 
-import qualified Data.List.NonEmpty as NE
 import qualified Brick.AttrMap        as Attr
 import qualified Brick.Main           as Brick
 import           Brick.Types          (Widget)
@@ -14,6 +13,7 @@ import qualified Brick.Widgets.Border as Border
 import qualified Brick.Widgets.Center as C
 import           Brick.Widgets.Core   (hLimit, str, vLimit, withAttr)
 import qualified Brick.Widgets.List   as L
+import qualified Data.List.NonEmpty   as NE
 import qualified Data.Vector          as Vec
 import qualified Graphics.Vty         as V
 import           Lens.Micro           ((^.))
@@ -26,9 +26,9 @@ type Model a = L.List () a
 appDraw :: Item a => Model a -> [Widget ()]
 appDraw l = [C.center box]
   where
-    label = str "Pick an item and press Enter"
+    label = str "Multiple functions match your query. Pick one and press Enter"
     box = Border.borderWithLabel label $
-      hLimit 50 $
+      hLimit 80 $
       vLimit 20 $
       L.renderList listDrawElement True l
 
@@ -72,5 +72,5 @@ pickAnItem :: Item a => NE.NonEmpty a -> IO a
 pickAnItem items = do
   mItem <- L.listSelectedElement <$> Brick.defaultMain pickItemApp (initList $ NE.toList items)
   case mItem of
-    Nothing -> error "TODO!"
+    Nothing        -> error "WTF?! selected item should never be nothing, since we're working with NonEmpty List!"
     Just (_, item) -> pure item
