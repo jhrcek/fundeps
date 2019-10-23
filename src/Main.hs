@@ -13,8 +13,7 @@ import qualified Data.Graph.Inductive.Query.DFS    as DFS
 import qualified Data.GraphViz                     as GraphViz
 import           Data.GraphViz.Attributes          (Shape (BoxShape), shape)
 import           Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir),
-                                                    Label (StrLabel),
-                                                    RankDir (FromTop))
+                                                    Label (StrLabel))
 import qualified Data.GraphViz.Commands            as GvCmd
 import           Data.List.NonEmpty                (NonEmpty ((:|)))
 import           Data.Map.Strict                   (Map)
@@ -25,23 +24,29 @@ import qualified Data.Set                          as Set
 import qualified Data.Text                         as Text
 import qualified Data.Text.IO                      as Text
 import qualified Data.Text.Lazy                    as LText
+import qualified System.IO                         as IO
 import           Terminal                          (Item (..), pickAnItem)
 import           Turtle                            hiding (f, g, sortOn)
+
+import           Settings                          (DependencyMode (..),
+                                                    NodeFormat (..),
+                                                    Settings (..),
+                                                    defaultSettings)
+import qualified Terminal.Commands                 as Cmd
 
 main :: IO ()
 main = do
   fcg <- buildFunctionCallGraph
   reportSize fcg
-  mode <- pickAnItem browsingModes
-  terminalUI fcg mode
+  terminalUI fcg defaultSettings
 
 
-drawInCanvas :: GraphOptions -> Gr Decl () -> IO ()
-drawInCanvas opts graph =
+drawInCanvas :: Settings -> Gr Decl () -> IO ()
+drawInCanvas settings graph =
   let dotGraph = graph
-        & (if _go_includeExternalPackages opts then id else G.labfilter (Text.null . _decl_package))
-        & GraphViz.graphToDot (gvParams opts)
-        & GraphViz.setStrictness (not $ _go_allowMultiEdges opts)
+        & (if _includeExternalPackages settings then id else G.labfilter (Text.null . _decl_package))
+        & GraphViz.graphToDot (gvParams settings)
+        & GraphViz.setStrictness (not $ _allowMultiEdges settings)
   in GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
 
 
@@ -58,41 +63,17 @@ showDfsSubgraph preprocessGraph fcg nodeIds = do
   let graph = preprocessGraph $ _graph fcg
       reachableNodeIds = DFS.dfs nodeIds graph
       subGr = G.subgraph reachableNodeIds $ _graph fcg
-  drawInCanvas defaultGraphOptions subGr
+  drawInCanvas defaultSettings subGr
 
 
-data GraphOptions = GraphOptions
-   { _go_allowMultiEdges         :: Bool
-   , _go_includeExternalPackages :: Bool
-   , _go_rankDir                 :: RankDir
-   , _go_nodeFormat              :: NodeFormat
-   }
-
-
-defaultGraphOptions :: GraphOptions
-defaultGraphOptions = GraphOptions
-   { _go_allowMultiEdges = True
-   , _go_includeExternalPackages = False
-   , _go_rankDir = FromTop -- FromLeft
-   , _go_nodeFormat = WithoutPackage
-   }
-
-
-gvParams :: GraphOptions -> GraphViz.GraphvizParams G.Node Decl () () Decl
-gvParams opts = GraphViz.nonClusteredParams
-  { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_go_nodeFormat opts) decl]
+gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () () Decl
+gvParams settings = GraphViz.nonClusteredParams
+  { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
   , GraphViz.globalAttributes =
       [ GraphViz.NodeAttrs [shape BoxShape]
-      , GraphViz.GraphAttrs [RankDir $ _go_rankDir opts]
+      , GraphViz.GraphAttrs [RankDir $ _rankDir settings]
       ]
   }
-
-
-data NodeFormat
-  = Full
-  | FunctionName
-  | FunctionNameIfInModule Text
-  | WithoutPackage
 
 
 formatNode :: NodeFormat -> Decl -> Text
@@ -183,28 +164,45 @@ reportSize fcg =
   in printf ("Loaded function call graph with "%s%" nodes and "%s%" edges.\n") (repr (G.order g)) (repr (G.size g))
 
 
-terminalUI :: FunctionCallGraph -> BrowsingMode -> IO ()
-terminalUI fcg mode = case mode of
-    Everything          -> drawInCanvas defaultGraphOptions $ _graph fcg
-    Dependencies        -> forever (loop showDependencies)
-    ReverseDependencies -> forever (loop showReverseDependencies)
+terminalUI :: FunctionCallGraph -> Settings -> IO ()
+terminalUI fcg settings_ = do
+    Text.putStrLn Cmd.typeHelp
+    loop settings_
   where
-    loop showDeps = do
-      cliPrompt "Enter one or more (comma-separated) function names:"
-      lookupResults <- processQuery fcg <$> Text.getLine
-      unless (null lookupResults) $ case partitionLookupResults lookupResults of
-        Left (notFounds, invalidQueries) -> do
-          for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
-          for_ invalidQueries $ \query -> cliWarn $ Text.unlines
-              [ "The following was not valid query: " <> query <> "."
-              , "Valid queries have one of these forms"
-              , "  - function"
-              , "  - module:function"
-              , "  - package:module:function"
-              ]
-        Right (foundIds1, ambiguous) -> do
-          foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
-          showDeps fcg $ foundIds1 <> foundIds2
+    loop settings = do
+      Text.putStr "> "
+      IO.hFlush IO.stdout
+
+      line <- Text.getLine
+      case Cmd.parseCommand line of
+        Left badCommandError -> cliWarn badCommandError >> loop settings
+        Right command -> case command of
+          Cmd.AdjustSettings change ->
+            let newSettings = Cmd.adjustSettings change settings
+            in loop newSettings
+          Cmd.Query query -> processQuery query >> loop settings
+          Cmd.ShowSettings -> Cmd.showSettings settings >> loop settings
+          Cmd.ShowHelp -> Cmd.showHelp >> loop settings
+      where
+        showDeps = case _dependencyMode settings of
+          Forward -> showDependencies
+          Reverse -> showReverseDependencies
+
+        processQuery query = do
+          let lookupResults = parseQuery fcg query
+          unless (null lookupResults) $ case partitionLookupResults lookupResults of
+            Left (notFounds, invalidQueries) -> do
+              for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
+              for_ invalidQueries $ \q -> cliWarn $ Text.unlines
+                  [ "The following was not valid query: " <> q <> "."
+                  , "Valid queries have one of these forms"
+                  , "  - function"
+                  , "  - module:function"
+                  , "  - package:module:function"
+                  ]
+            Right (foundIds1, ambiguous) -> do
+              foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
+              showDeps fcg $ foundIds1 <> foundIds2
 
 
 partitionLookupResults :: [LookupResult] -> Either ([Text],[Text]) ([G.Node], [NonEmpty Decl])
@@ -222,8 +220,8 @@ partitionLookupResults = foldr step (Right ([],[]))
       Ambiguous a     -> Right (founds, a:ambiguous)
 
 
-processQuery :: FunctionCallGraph -> Text -> [LookupResult]
-processQuery fcg searchText =
+parseQuery :: FunctionCallGraph -> Text -> [LookupResult]
+parseQuery fcg searchText =
     fmap (lookupFunctionId fcg) searchTerms
   where
     searchTerms = filter (not . Text.null) . fmap Text.strip $ Text.splitOn "," searchText
@@ -254,20 +252,6 @@ data LookupResult
   | InvalidQuery Text
   | NotFound Text
   | Ambiguous (NonEmpty Decl)
-
-
-data BrowsingMode = Everything | Dependencies | ReverseDependencies
-
-
-browsingModes :: NonEmpty BrowsingMode
-browsingModes = Everything :| [Dependencies, ReverseDependencies]
-
-
-instance Item BrowsingMode where
-  showItem Everything          = "Everything"
-  showItem Dependencies        = "Dependencies"
-  showItem ReverseDependencies = "Reverse Dependencies"
-
 
 instance Item Decl where
   showItem decl = Text.unpack $ formatNode Full decl
