@@ -41,6 +41,16 @@ main = do
   terminalUI fcg defaultSettings
 
 
+showDfsSubgraph :: FunctionCallGraph -> Settings -> [G.Node] -> IO ()
+showDfsSubgraph fcg settings nodeIds = do
+  let graph = case _dependencyMode settings of
+        Forward ->          _graph fcg
+        Reverse -> GB.grev $ _graph fcg
+      reachableNodeIds = DFS.dfs nodeIds graph
+      subGraph = G.subgraph reachableNodeIds $ _graph fcg
+  drawInCanvas settings subGraph
+
+
 drawInCanvas :: Settings -> Gr Decl () -> IO ()
 drawInCanvas settings graph =
   let dotGraph = graph
@@ -48,22 +58,6 @@ drawInCanvas settings graph =
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
   in GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
-
-
-showReverseDependencies :: FunctionCallGraph -> [G.Node] -> IO ()
-showReverseDependencies = showDfsSubgraph GB.grev
-
-
-showDependencies :: FunctionCallGraph -> [G.Node] -> IO ()
-showDependencies = showDfsSubgraph id
-
-
-showDfsSubgraph :: (Graph -> Graph) -> FunctionCallGraph -> [G.Node] -> IO ()
-showDfsSubgraph preprocessGraph fcg nodeIds = do
-  let graph = preprocessGraph $ _graph fcg
-      reachableNodeIds = DFS.dfs nodeIds graph
-      subGr = G.subgraph reachableNodeIds $ _graph fcg
-  drawInCanvas defaultSettings subGr
 
 
 gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () () Decl
@@ -172,7 +166,6 @@ terminalUI fcg settings_ = do
     loop settings = do
       Text.putStr "> "
       IO.hFlush IO.stdout
-
       line <- Text.getLine
       case Cmd.parseCommand line of
         Left badCommandError -> cliWarn badCommandError >> loop settings
@@ -184,10 +177,6 @@ terminalUI fcg settings_ = do
           Cmd.ShowSettings -> Cmd.showSettings settings >> loop settings
           Cmd.ShowHelp -> Cmd.showHelp >> loop settings
       where
-        showDeps = case _dependencyMode settings of
-          Forward -> showDependencies
-          Reverse -> showReverseDependencies
-
         processQuery query = do
           let lookupResults = parseQuery fcg query
           unless (null lookupResults) $ case partitionLookupResults lookupResults of
@@ -202,7 +191,7 @@ terminalUI fcg settings_ = do
                   ]
             Right (foundIds1, ambiguous) -> do
               foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
-              showDeps fcg $ foundIds1 <> foundIds2
+              showDfsSubgraph fcg settings $ foundIds1 <> foundIds2
 
 
 partitionLookupResults :: [LookupResult] -> Either ([Text],[Text]) ([G.Node], [NonEmpty Decl])

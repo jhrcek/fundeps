@@ -13,6 +13,9 @@ import           Data.Text                         (Text)
 import qualified Data.Text                         as Text
 import           Settings
 
+-- TODO: arrow up / down should scroll through command history
+-- TODO: tab completion
+
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands"
 
