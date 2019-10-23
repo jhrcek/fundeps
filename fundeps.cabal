@@ -2,12 +2,12 @@ name:                fundeps
 version:             0.1.0.0
 -- synopsis:
 -- description:
-homepage:            https://github.com/githubuser/fundeps#readme
+homepage:            https://github.com/jhrcek/fundeps#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
+author:              Jan Hrček
 maintainer:          example@example.com
-copyright:           2019 Author name here
+copyright:           2019 Jan Hrček
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.10

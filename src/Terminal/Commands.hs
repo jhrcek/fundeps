@@ -15,6 +15,7 @@ import           Settings
 
 -- TODO: arrow up / down should scroll through command history
 -- TODO: tab completion
+-- TODO: show warning when searching for external functions, but include.external.packages is false
 
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands"

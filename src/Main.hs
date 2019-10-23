@@ -75,7 +75,8 @@ formatNode fmt (Decl p m f) = case fmt of
   FunctionName -> f
   FunctionNameIfInModule desiredModule ->
       if m == desiredModule then f else Text.unlines [p, m, f]
-  Full -> Text.intercalate ":" [p, m, f]
+  Full ->
+      Text.intercalate ":" $ if Text.null p then  [m, f] else [p, m, f]
   WithoutPackage -> Text.unlines [m,f]
 
 
