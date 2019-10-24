@@ -5,7 +5,7 @@ module Settings
   , defaultSettings
   ) where
 
-import           Data.GraphViz.Attributes.Complete (RankDir (FromTop))
+import           Data.GraphViz.Attributes.Complete (RankDir (FromLeft))
 
 data Settings = Settings
    { _allowMultiEdges         :: Bool
@@ -23,7 +23,7 @@ defaultSettings = Settings
    , _dependencyMode = Reverse
    , _includeExternalPackages = False
    , _nodeFormat = WithoutPackage
-   , _rankDir = FromTop
+   , _rankDir = FromLeft
    }
 
 
