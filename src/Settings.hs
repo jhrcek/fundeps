@@ -13,7 +13,7 @@ data Settings = Settings
    , _includeExternalPackages :: Bool
    , _nodeFormat              :: NodeFormat
    , _rankDir                 :: RankDir
-   -- TODO , _transitiveReduction :: Bool
+   , _transitiveReduction     :: Bool
    }
 
 
@@ -24,6 +24,7 @@ defaultSettings = Settings
    , _includeExternalPackages = False
    , _nodeFormat = WithoutPackage
    , _rankDir = FromLeft
+   , _transitiveReduction = False
    }
 
 

@@ -12,6 +12,7 @@ import qualified Data.Graph.Inductive.Graph        as G
 import           Data.Graph.Inductive.PatriciaTree (Gr)
 import qualified Data.Graph.Inductive.Query.DFS    as DFS
 import qualified Data.GraphViz                     as GraphViz
+import qualified Data.GraphViz.Algorithms
 import           Data.GraphViz.Attributes          (Shape (BoxShape), shape)
 import           Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir),
                                                     Label (StrLabel))
@@ -76,6 +77,7 @@ drawInCanvas settings graph =
   let dotGraph = graph
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
+        & if _transitiveReduction settings then Data.GraphViz.Algorithms.transitiveReduction else id
   in GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
 
 
