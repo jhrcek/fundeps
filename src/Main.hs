@@ -46,17 +46,34 @@ main = do
 showDfsSubgraph :: FunctionCallGraph -> Settings -> [G.Node] -> IO ()
 showDfsSubgraph fcg settings nodeIds = do
   let graph = case _dependencyMode settings of
-        Forward ->          _graph fcg
+        Forward ->           _graph fcg
         Reverse -> GB.grev $ _graph fcg
+
+      currentPackage = _currentPackage fcg
+
       reachableNodeIds = DFS.dfs nodeIds graph
-      subGraph = G.subgraph reachableNodeIds $ _graph fcg
-  drawInCanvas settings (_currentPackage fcg) subGraph
+
+      subGraph = _graph fcg
+        & G.subgraph reachableNodeIds
+        & if _includeExternalPackages settings then id else G.labfilter ((currentPackage == ) . _decl_package)
+
+      excludedNodeIds = filter (\nodeId -> not (G.gelem nodeId subGraph)) nodeIds
+
+  -- Warn about search nodes being excluded due to being from external packages
+  unless (null excludedNodeIds) $ do
+    cliWarn "These functions were excluded from the graph, because they come from external packages:"
+    for_ excludedNodeIds $ \nodeId ->
+      maybe (pure ()) (cliWarn . (" • " <>) . formatNode Full) $ G.lab (_graph fcg) nodeId
+    cliWarn "Run `:set include.external.packages True` to include them"
+
+  when (G.noNodes subGraph /= 0) $ do
+      printf ("Showing subgraph with "%d%" nodes, "%d%" edges\n") (G.noNodes subGraph) (G.size subGraph)
+      drawInCanvas settings subGraph
 
 
-drawInCanvas :: Settings -> PackageName -> Gr Decl () -> IO ()
-drawInCanvas settings currentPackage graph =
+drawInCanvas :: Settings -> Gr Decl () -> IO ()
+drawInCanvas settings graph =
   let dotGraph = graph
-        & (if _includeExternalPackages settings then id else G.labfilter ((currentPackage == ) . _decl_package))
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
   in GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
@@ -168,7 +185,7 @@ cliWarn msg = Text.putStrLn $ red <> msg <> reset
 reportSize :: FunctionCallGraph -> IO ()
 reportSize fcg =
   let g = _graph fcg
-  in printf ("Loaded function call graph with "%s%" nodes and "%s%" edges.\n") (repr (G.order g)) (repr (G.size g))
+  in printf ("Loaded function dependency graph with "%d%" nodes and "%d%" edges.\n") (G.noNodes g) (G.size g)
 
 
 terminalUI :: FunctionCallGraph -> Settings -> IO ()
@@ -193,7 +210,7 @@ terminalUI fcg settings_ = do
               Cmd.Query query -> liftIO (processQuery query) >> loop settings
               Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
-              Cmd.ShowGraph -> liftIO (drawInCanvas settings (_currentPackage fcg) (_graph fcg)) >> loop settings
+              Cmd.ShowGraph -> liftIO (drawInCanvas settings (_graph fcg)) >> loop settings
               Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
           where
             processQuery :: Text -> IO ()

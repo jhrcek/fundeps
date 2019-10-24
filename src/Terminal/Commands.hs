@@ -16,7 +16,6 @@ import qualified Data.Text.IO                      as Text
 import           Settings
 import           Turtle                            (repr)
 
--- TODO: show warning when searching for external functions, but include.external.packages is false
 -- TODO: ask for confirmation when displaying too large graphs
 
 typeHelp :: Text
