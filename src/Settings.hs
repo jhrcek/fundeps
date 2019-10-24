@@ -6,7 +6,6 @@ module Settings
   ) where
 
 import           Data.GraphViz.Attributes.Complete (RankDir (FromTop))
-import           Data.Text                         (Text)
 
 data Settings = Settings
    { _allowMultiEdges         :: Bool
@@ -30,8 +29,6 @@ defaultSettings = Settings
 
 data NodeFormat
   = Full
-  | FunctionName
-  | FunctionNameIfInModule Text
   | WithoutPackage
 
 

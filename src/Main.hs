@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingVia       #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
@@ -49,13 +50,13 @@ showDfsSubgraph fcg settings nodeIds = do
         Reverse -> GB.grev $ _graph fcg
       reachableNodeIds = DFS.dfs nodeIds graph
       subGraph = G.subgraph reachableNodeIds $ _graph fcg
-  drawInCanvas settings subGraph
+  drawInCanvas settings (_currentPackage fcg) subGraph
 
 
-drawInCanvas :: Settings -> Gr Decl () -> IO ()
-drawInCanvas settings graph =
+drawInCanvas :: Settings -> PackageName -> Gr Decl () -> IO ()
+drawInCanvas settings currentPackage graph =
   let dotGraph = graph
-        & (if _includeExternalPackages settings then id else G.labfilter (Text.null . _decl_package))
+        & (if _includeExternalPackages settings then id else G.labfilter ((currentPackage == ) . _decl_package))
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
   in GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
@@ -73,61 +74,67 @@ gvParams settings = GraphViz.nonClusteredParams
 
 formatNode :: NodeFormat -> Decl -> Text
 formatNode fmt (Decl p m f) = case fmt of
-  FunctionName -> f
-  FunctionNameIfInModule desiredModule ->
-      if m == desiredModule then f else Text.unlines [p, m, f]
-  Full ->
-      Text.intercalate ":" $ if Text.null p then  [m, f] else [p, m, f]
-  WithoutPackage -> Text.unlines [m,f]
+  Full -> Text.intercalate ":"
+          $ (if Text.null (unPackageName p) then id else (unPackageName p:))
+          [unModuleName m, unFunctionName f]
+  WithoutPackage -> Text.unlines [unModuleName m, unFunctionName f]
 
 
 data Decl = Decl
-  { _decl_package  :: Text
-  , _decl_module   :: Text
-  , _decl_function :: Text
+  { _decl_package  :: PackageName
+  , _decl_module   :: ModuleName
+  , _decl_function :: FunctionName
   } deriving (Show, Eq, Ord)
 
+newtype PackageName  = PackageName  { unPackageName  :: Text } deriving (Eq, Ord, Show) via Text
+newtype ModuleName   = ModuleName   { unModuleName   :: Text } deriving (Eq, Ord, Show) via Text
+newtype FunctionName = FunctionName { unFunctionName :: Text } deriving (Eq, Ord, Show) via Text
 
 type Edge = (Decl, Decl)
 
 
 loadEdges :: Shell Edge
-loadEdges = parseLine <$> inshell "cat *.functionUsages" empty
+loadEdges = -- TODO this throws an exception in case no files are found
+  parseEdge <$> inshell "cat *.functionUsages" empty
 
 
 --TODO better representation for serializing function dependency data
-parseLine :: Line -> Edge
-parseLine line = (Decl p1 m1 f1, Decl  p2 m2 f2)
+parseEdge :: Line -> Edge
+parseEdge line =
+    ( Decl (PackageName p1) (ModuleName m1) (FunctionName f1)
+    , Decl (PackageName p2) (ModuleName m2) (FunctionName f2)
+    )
   where
     ((p1,m1,f1),(p2,m2,f2)) = read . Text.unpack $ lineToText line
 
 
 processNode :: Decl -> State FunctionCallGraph ()
 processNode decl@(Decl _ _ fname) =
-  State.modify' $ \(FCG decls funs graph) ->
+  State.modify' $ \(FCG decls funs graph pkg) ->
     let newDecls = Map.alter (Just . fromMaybe (Map.size decls)) decl decls
         newFuns = Map.insertWith (<>) fname (Set.singleton decl) funs
         nodeId = newDecls Map.! decl
         newGraph = if G.gelem nodeId graph then graph else G.insNode (nodeId, decl) graph
-    in FCG newDecls newFuns newGraph
+    in FCG newDecls newFuns newGraph pkg
 
 
 processEdges :: Edge -> State FunctionCallGraph ()
 processEdges (a,b) = do
   processNode a
   processNode b
-  State.modify' $ \(FCG decls funs g) ->
+  State.modify' $ \(FCG decls funs g pkg) ->
     let fromId = decls Map.! a
         toId = decls Map.! b
         newGraph = G.insEdge (fromId, toId, ()) g
-    in FCG decls funs newGraph
+    in FCG decls funs newGraph pkg
 
 
 data FunctionCallGraph = FCG
-  { _declToNode :: Map Decl G.Node -- ^ map declarations to the node ID used in the graph
+  { _declToNode          :: Map Decl G.Node -- ^ map declarations to the node ID used in the graph
   -- Invariant: function names in this map are exactly those that occur in the _declToNode
-  , _functionNameToNodes :: Map Text {-TODO newtype this string to FunctionName -} (Set Decl) -- ^ Map name of function to the set of declarations that have this function name
-  , _graph      :: Graph
+  , _functionNameToNodes :: Map FunctionName (Set Decl) -- ^ Map name of function to the set of declarations that have this function name
+  , _graph               :: Graph
+  , _currentPackage      :: PackageName -- ^ to distinguish between this and 3rd party packages
   } deriving Show
 
 
@@ -136,10 +143,14 @@ type Graph = Gr Decl ()
 
 buildFunctionCallGraph :: IO FunctionCallGraph
 buildFunctionCallGraph = do
-    stringEdges <- fold loadEdges F.list
+    -- TODO it should be possible to fold into graph without materializing the whole list into memory
+    edges <- fold loadEdges F.list
+    currentPackage <- case edges of
+          []                    -> die "TODO: No edges were loaded"
+          ((Decl pkg _ _, _):_) -> pure pkg
     pure $ State.execState
-        (traverse_ processEdges stringEdges)
-        (FCG Map.empty Map.empty G.empty)
+        (traverse_ processEdges edges)
+        (FCG Map.empty Map.empty G.empty currentPackage)
 
 -- TERMINAL UI STUFF
 
@@ -182,7 +193,7 @@ terminalUI fcg settings_ = do
               Cmd.Query query -> liftIO (processQuery query) >> loop settings
               Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
-              Cmd.ShowGraph -> liftIO (drawInCanvas settings (_graph fcg)) >> loop settings
+              Cmd.ShowGraph -> liftIO (drawInCanvas settings (_currentPackage fcg) (_graph fcg)) >> loop settings
               Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
           where
             processQuery :: Text -> IO ()
@@ -226,11 +237,11 @@ parseQuery fcg searchText =
 
 
 lookupFunctionId :: FunctionCallGraph -> Text -> LookupResult
-lookupFunctionId (FCG decls funs _) searchText =
+lookupFunctionId (FCG decls funs _ _) searchText =
   case Text.splitOn ":" searchText of
-    [p,m,f] -> lookupUnique (Decl p m f)
-    [m,f]   -> lookupUnique (Decl "" m f)
-    [fname] -> case Map.lookup fname funs of
+    [p,m,f] -> lookupUnique (Decl (PackageName p) (ModuleName m) (FunctionName f))
+    [m,f]   -> lookupUnique (Decl (PackageName "") (ModuleName m) (FunctionName f))
+    [fname] -> case Map.lookup (FunctionName fname) funs of
       Nothing      -> NotFound fname
       Just declSet -> case Set.toList declSet of
         []     -> error $ "WTF?! Invariant broken: set of declarations with function name '" <> Text.unpack fname <> "'' was empty"
@@ -251,7 +262,7 @@ buildCompletionFunction fcg = Repl.completeWord Nothing whitespace lookupComplet
 
     fullyQualifiedSuggestions = fmap (Text.unpack . formatNode Full) . Map.keys $ _declToNode fcg
 
-    functionNameSuggestions = fmap Text.unpack . Map.keys $ _functionNameToNodes fcg
+    functionNameSuggestions = fmap (Text.unpack . unFunctionName) . Map.keys $ _functionNameToNodes fcg
 
     lookupCompletions prefix = pure
       . fmap Repl.simpleCompletion

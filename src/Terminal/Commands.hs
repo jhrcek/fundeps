@@ -17,7 +17,6 @@ import           Settings
 import           Turtle                            (repr)
 
 -- TODO: show warning when searching for external functions, but include.external.packages is false
--- TODO: improve detection of external packages - when inspecting non-apps, the "current" package is not ""
 -- TODO: ask for confirmation when displaying too large graphs
 
 typeHelp :: Text
