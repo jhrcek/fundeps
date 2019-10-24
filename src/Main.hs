@@ -244,8 +244,10 @@ lookupFunctionId (FCG decls funs _) searchText =
       Just nodeId -> FoundUnique nodeId
 
 buildCompletionFunction :: FunctionCallGraph -> Repl.CompletionFunc IO
-buildCompletionFunction fcg = Repl.completeWord Nothing " " lookupCompletions
+buildCompletionFunction fcg = Repl.completeWord Nothing whitespace lookupCompletions
   where
+    whitespace = [] -- Empty list = everything is treated as one word to allow autocompletion of things including spaces, like ":set SETTING"
+
     fullyQualifiedSuggestions = fmap (Text.unpack . formatNode Full) . Map.keys $ _declToNode fcg
 
     functionNameSuggestions = fmap Text.unpack . Map.keys $ _functionNameToNodes fcg

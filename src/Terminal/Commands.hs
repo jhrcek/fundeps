@@ -19,7 +19,7 @@ import           Turtle                            (repr)
 -- TODO: show warning when searching for external functions, but include.external.packages is false
 -- TODO: improve detection of external packages - when inspecting non-apps, the "current" package is not ""
 -- TODO: ask for confirmation when displaying too large graphs
--- TODO: improve autocompletion so that ":set SETTING" are suggested as a whole, not word-by word
+-- TODO: add :quit command
 
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands"
@@ -120,9 +120,8 @@ commandSuggestions =
   [ ":help"
   , ":show"
   , ":graph"
-  , ":set"
-  , "allow.multi.edges"
-  , "dependency.mode"
-  , "include.external.packages"
-  , "rank.dir"
+  , ":set allow.multi.edges"
+  , ":set dependency.mode"
+  , ":set include.external.packages"
+  , ":set rank.dir"
   ]
