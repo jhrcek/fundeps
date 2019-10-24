@@ -182,6 +182,7 @@ terminalUI fcg settings_ = do
               Cmd.Query query -> liftIO (processQuery query) >> loop settings
               Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
+              Cmd.ShowGraph -> liftIO (drawInCanvas settings (_graph fcg)) >> loop settings
           where
             processQuery :: Text -> IO ()
             processQuery query = do
@@ -251,7 +252,7 @@ buildCompletionFunction fcg = Repl.completeWord Nothing " " lookupCompletions
 
     lookupCompletions prefix = pure
       . fmap Repl.simpleCompletion
-      . filter (\suggestion -> prefix `List.isPrefixOf` suggestion)
+      . filter (List.isPrefixOf prefix)
       $ Cmd.commandSuggestions <> fullyQualifiedSuggestions <> functionNameSuggestions
 
 
