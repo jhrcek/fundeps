@@ -19,16 +19,16 @@ import           Turtle                            (repr)
 -- TODO: show warning when searching for external functions, but include.external.packages is false
 -- TODO: improve detection of external packages - when inspecting non-apps, the "current" package is not ""
 -- TODO: ask for confirmation when displaying too large graphs
--- TODO: add :quit command
 
 typeHelp :: Text
-typeHelp = "Type :help to get a list of available commands"
+typeHelp = "Type :help to get a list of available commands and settings"
 
 parseCommand :: Text -> Either Text Command
 parseCommand text = case Text.words text of
     (":help":_)    -> Right ShowHelp
     (":show":_)    -> Right ShowSettings
     (":graph":_)   -> Right ShowGraph
+    (":quit":_)    -> Right Quit
     (":set":other) -> AdjustSettings <$> parseAdjustSetting other
     (word:_) | Text.isPrefixOf ":" text -> Left $ word <> " is not a valid command. " <> typeHelp
              | otherwise                -> Right $ Query text
@@ -36,11 +36,13 @@ parseCommand text = case Text.words text of
 
 parseAdjustSetting :: [Text] -> Either Text AdjustSetting
 parseAdjustSetting xs = case xs of
-  ["include.external.packages", x] -> IncludeExternalPackages <$> parseBool x
-  ["allow.multi.edges", x]         -> AllowMultiEdges <$> parseBool x
-  ["rank.dir", x]                  -> SetRankDir <$> parseRankDir x
-  ["dependency.mode", x]           -> SetDependencyMode <$> parseDependencyMode x
-  _                                -> Left $ "'" <> Text.unwords xs <> "' is not recognized setting. " <> typeHelp
+  ["include.external.packages", value] -> IncludeExternalPackages <$> parseBool value
+  ["allow.multi.edges", value]         -> AllowMultiEdges <$> parseBool value
+  ["rank.dir", value]                  -> SetRankDir <$> parseRankDir value
+  ["dependency.mode", value]           -> SetDependencyMode <$> parseDependencyMode value
+  [unknown, _]                         -> Left $ "'" <> unknown <> "' is not recognized setting. " <> typeHelp
+  []                                   -> Left $ "Please provide name and value of some setting. " <> typeHelp
+  _                                    -> Left $ "`:set " <> Text.unwords xs <> "` didn't match valid syntax `:set SETTING VALUE`. " <> typeHelp
 
 parseRankDir :: Text -> Either Text RankDir
 parseRankDir word = case word of
@@ -75,6 +77,7 @@ data Command
   | ShowGraph
   | ShowSettings
   | ShowHelp
+  | Quit
 
 
 data AdjustSetting
@@ -103,23 +106,28 @@ showSettings settings =
 
 showHelp :: IO ()
 showHelp = putStrLn $ unlines
- [ "<query>                                      name of the function to search"
- , ":help                                        Show this help"
- , ":show                                        Show current settings"
- , ":graph                                       Show the entire function dependency graph"
- , ":set SETTING VALUE                           Set given SETTING to given VALUE"
- , "     SETTING                    POSSIBLE VALUES     LEGEND"
- , "     allow.multi.edges          True|False          Enable showing multiple edges"
- , "     dependency.mode            Forward|Reverse     Whether to search for dependencies of reverse dependencies"
- , "     include.external.packages  True|False          Include functions from external packages (like elm/core)?"
- , "     rank.dir                   LR|RL|TB|BT         GraphViz rank direction"
+ [ "COMMANDS"
+ , "  <query>               Search function by name"
+ , "  :help                 Display this help"
+ , "  :quit                 Quit the program"
+ , "  :show                 Display current settings"
+ , "  :graph                Display the entire function dependency graph"
+ , "  :set SETTING VALUE    Set given SETTING to given VALUE"
+ , ""
+ , "SETTINGS"
+ , "  SETTING                    POSSIBLE VALUES     LEGEND"
+ , "  allow.multi.edges          True|False          Enable showing multiple edges"
+ , "  dependency.mode            Forward|Reverse     Whether to search for dependencies of reverse dependencies"
+ , "  include.external.packages  True|False          Include functions from external packages (like elm/core)?"
+ , "  rank.dir                   LR|RL|TB|BT         GraphViz rank direction"
  ]
 
 commandSuggestions :: [String]
 commandSuggestions =
-  [ ":help"
+  [ ":graph"
+  , ":help"
+  , ":quit"
   , ":show"
-  , ":graph"
   , ":set allow.multi.edges"
   , ":set dependency.mode"
   , ":set include.external.packages"

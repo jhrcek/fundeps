@@ -149,8 +149,8 @@ red = "\ESC[31m"
 reset = "\ESC[0m"
 
 
-cliPrompt, cliWarn :: Text -> IO ()
-cliPrompt msg = Text.putStrLn $ green <> msg <> reset
+cliInfo, cliWarn :: Text -> IO ()
+cliInfo msg = Text.putStrLn $ green <> msg <> reset
 cliWarn msg = Text.putStrLn $ red <> msg <> reset
 
 
@@ -183,6 +183,7 @@ terminalUI fcg settings_ = do
               Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
               Cmd.ShowGraph -> liftIO (drawInCanvas settings (_graph fcg)) >> loop settings
+              Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
           where
             processQuery :: Text -> IO ()
             processQuery query = do
