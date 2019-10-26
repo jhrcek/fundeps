@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingVia       #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -48,13 +49,8 @@ main = do
 
 
 showDfsSubgraph :: FunctionCallGraph -> Settings -> [G.Node] -> IO ()
-showDfsSubgraph fcg settings nodeIds = do
-  let
-      graph = _graph fcg
-
-      currentPackage = _currentPackage fcg
-
-      reachableNodeIds = DFS.dfs nodeIds $
+showDfsSubgraph FCG{graph,currentPackage} settings nodeIds = do
+  let reachableNodeIds = DFS.dfs nodeIds $
         case _dependencyMode settings of
           Forward -> graph
           Reverse -> GB.grev graph
@@ -168,11 +164,11 @@ processEdges (a,b) = do
 
 
 data FunctionCallGraph = FCG
-  { _declToNode          :: Map Decl G.Node -- ^ map declarations to the node ID used in the graph
+  { declToNode          :: Map Decl G.Node -- ^ map declarations to the node ID used in the graph
   -- Invariant: function names in this map are exactly those that occur in the _declToNode
-  , _functionNameToNodes :: Map FunctionName (Set Decl) -- ^ Map name of function to the set of declarations that have this function name
-  , _graph               :: Graph
-  , _currentPackage      :: PackageName -- ^ to distinguish between this and 3rd party packages
+  , functionNameToNodes :: Map FunctionName (Set Decl) -- ^ Map name of function to the set of declarations that have this function name
+  , graph               :: Graph
+  , currentPackage      :: PackageName -- ^ to distinguish between this and 3rd party packages
   } deriving Show
 
 
@@ -202,13 +198,12 @@ cliWarn msg = Text.putStrLn $ red <> msg <> reset
 
 
 reportSize :: FunctionCallGraph -> IO ()
-reportSize fcg =
-  let g = _graph fcg
-  in printf ("Loaded function dependency graph with "%d%" nodes and "%d%" edges.\n") (G.noNodes g) (G.size g)
+reportSize FCG{graph} =
+    printf ("Loaded function dependency graph with "%d%" nodes and "%d%" edges.\n") (G.noNodes graph) (G.size graph)
 
 
 terminalUI :: FunctionCallGraph -> Settings -> IO ()
-terminalUI fcg settings_ = do
+terminalUI fcg@FCG{currentPackage, graph, declToNode} settings_ = do
     Text.putStrLn Cmd.typeHelp
     let completionFunc = buildCompletionFunction fcg
     let settingsWithCompletion = Repl.setComplete completionFunc Repl.defaultSettings
@@ -230,8 +225,8 @@ terminalUI fcg settings_ = do
               Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
               Cmd.ShowGraph -> do
-                let graph = excludeExternalPackages settings (_currentPackage fcg) (_graph fcg)
-                liftIO (drawInCanvas settings graph)
+                let graph' = excludeExternalPackages settings currentPackage graph
+                liftIO (drawInCanvas settings graph')
                 loop settings
               Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
           where
@@ -249,7 +244,7 @@ terminalUI fcg settings_ = do
                       , "  - package:module:function"
                       ]
                 Right (foundIds1, ambiguous) -> do
-                  foundIds2 <- traverse (fmap (\decl -> _declToNode fcg Map.! decl) . pickAnItem) ambiguous
+                  foundIds2 <- traverse (fmap (\decl -> declToNode Map.! decl) . pickAnItem) ambiguous
                   showDfsSubgraph fcg settings $ foundIds1 <> foundIds2
 
 
@@ -294,14 +289,15 @@ lookupFunctionId (FCG decls funs _ _) searchText =
       Nothing     -> NotFound $ formatNode Full decl
       Just nodeId -> FoundUnique nodeId
 
+
 buildCompletionFunction :: FunctionCallGraph -> Repl.CompletionFunc IO
-buildCompletionFunction fcg = Repl.completeWord Nothing whitespace lookupCompletions
+buildCompletionFunction FCG{declToNode, functionNameToNodes} = Repl.completeWord Nothing whitespace lookupCompletions
   where
     whitespace = [] -- Empty list = everything is treated as one word to allow autocompletion of things including spaces, like ":set SETTING"
 
-    fullyQualifiedSuggestions = fmap (Text.unpack . formatNode Full) . Map.keys $ _declToNode fcg
+    fullyQualifiedSuggestions = Text.unpack . formatNode Full <$> Map.keys declToNode
 
-    functionNameSuggestions = fmap (Text.unpack . unFunctionName) . Map.keys $ _functionNameToNodes fcg
+    functionNameSuggestions = Text.unpack . unFunctionName <$> Map.keys functionNameToNodes
     -- TODO also make the autocompletion work for queries of the form `Module:function` even for modules from external packages
     lookupCompletions prefix = pure
       . fmap Repl.simpleCompletion
