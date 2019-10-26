@@ -7,6 +7,7 @@ module Settings
 
 import           Data.GraphViz.Attributes.Complete (RankDir (FromLeft))
 
+
 data Settings = Settings
    { _allowMultiEdges         :: Bool
    , _dependencyMode          :: DependencyMode

@@ -18,10 +18,13 @@ import qualified Data.Vector          as Vec
 import qualified Graphics.Vty         as V
 import           Lens.Micro           ((^.))
 
+
 class Item a where
   showItem :: a -> String
 
+
 type Model a = L.List () a
+
 
 appDraw :: Item a => Model a -> [Widget ()]
 appDraw l = [C.center box]
@@ -31,6 +34,7 @@ appDraw l = [C.center box]
       hLimit 80 $
       vLimit 20 $
       L.renderList listDrawElement True l
+
 
 appHandleEvent :: Item a => Model a -> T.BrickEvent () e -> T.EventM () (T.Next (Model a))
 appHandleEvent l (T.VtyEvent e) =
@@ -45,19 +49,23 @@ appHandleEvent l (T.VtyEvent e) =
         ev -> L.handleListEvent ev l >>=  Brick.continue
 appHandleEvent l _ = Brick.continue l
 
+
 listDrawElement :: Item a => Bool -> a -> Widget ()
 listDrawElement isSelected
   | isSelected = withAttr L.listSelectedAttr . str . showItem
   | otherwise  = str . showItem
 
+
 initList :: Item a => [a] -> Model a
 initList items = L.list () (Vec.fromList items) 0
+
 
 appAttrMap :: Attr.AttrMap
 appAttrMap = Attr.attrMap V.defAttr
   [ (L.listAttr,            V.white `on` V.blue)
   , (L.listSelectedAttr,    V.blue `on` V.white)
   ]
+
 
 pickItemApp :: Item a => Brick.App (Model a) e ()
 pickItemApp = Brick.App
@@ -67,6 +75,7 @@ pickItemApp = Brick.App
   , Brick.appStartEvent = return
   , Brick.appAttrMap = const appAttrMap
   }
+
 
 pickAnItem :: Item a => NE.NonEmpty a -> IO a
 pickAnItem items = do

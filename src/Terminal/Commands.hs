@@ -16,10 +16,10 @@ import qualified Data.Text.IO                      as Text
 import           Settings
 import           Turtle                            (repr)
 
--- TODO: ask for confirmation when displaying too large graphs
 
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands and settings"
+
 
 parseCommand :: Text -> Either Text Command
 parseCommand text = case Text.words text of
@@ -32,6 +32,7 @@ parseCommand text = case Text.words text of
              | otherwise                -> Right $ Query text
     [] -> Left typeHelp
 
+
 parseAdjustSetting :: [Text] -> Either Text AdjustSetting
 parseAdjustSetting xs = case xs of
   ["include.external.packages", value] -> IncludeExternalPackages <$> parseBool value
@@ -43,6 +44,7 @@ parseAdjustSetting xs = case xs of
   []                                   -> Left $ "Please provide name and value of some setting. " <> typeHelp
   _                                    -> Left $ "`:set " <> Text.unwords xs <> "` didn't match valid syntax `:set SETTING VALUE`. " <> typeHelp
 
+
 parseRankDir :: Text -> Either Text RankDir
 parseRankDir word = case word of
   "RL" -> Right FromRight
@@ -51,11 +53,13 @@ parseRankDir word = case word of
   "BT" -> Right FromBottom
   _    -> Left $ word <> " is not a valid RankDir. Valid values are: LR|RL|TB|BT"
 
+
 parseBool :: Text -> Either Text Bool
 parseBool word = case word of
   "True"  -> Right True
   "False" -> Right False
   _       -> Left $ word <> " is not a valid Bool. Valid values are: True|False"
+
 
 parseDependencyMode :: Text -> Either Text DependencyMode
 parseDependencyMode word = case word of
@@ -63,12 +67,14 @@ parseDependencyMode word = case word of
   "Reverse" -> Right Reverse
   _         -> Left $ word <> "is not a valid browsing mode. Valid values are: Forward|Reverse"
 
+
 showRankDir :: RankDir -> Text
 showRankDir rd = case rd of
     FromRight  -> "RL"
     FromLeft   -> "LR"
     FromTop    -> "TB"
     FromBottom -> "BT"
+
 
 data Command
   = AdjustSettings AdjustSetting
@@ -96,6 +102,7 @@ adjustSettings a settings =
     SetRankDir rankDir           -> settings { _rankDir = rankDir }
     SetDependencyMode mode       -> settings { _dependencyMode = mode }
 
+
 showSettings :: Settings -> IO ()
 showSettings settings =
   Text.putStrLn $ Text.unlines
@@ -105,6 +112,7 @@ showSettings settings =
     , "rank.dir = " <> showRankDir (_rankDir settings)
     , "transitive.reduction = " <> repr (_transitiveReduction settings)
     ]
+
 
 showHelp :: IO ()
 showHelp = putStrLn $ unlines
@@ -124,6 +132,7 @@ showHelp = putStrLn $ unlines
  , "  rank.dir                   LR|RL|TB|BT         GraphViz rank direction"
  , "  transitive.reduction       True|False          Run transitive reduction on graph before displaying it"
  ]
+
 
 commandSuggestions :: [String]
 commandSuggestions =

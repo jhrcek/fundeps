@@ -81,7 +81,6 @@ drawInCanvas settings graph =
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
         & if _transitiveReduction settings then Data.GraphViz.Algorithms.transitiveReduction else id
   in void . forkIO $
-      --TODO make graphviz command used for rendering (dot, neato etc.) configurable
       GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
 
 
@@ -131,7 +130,7 @@ loadEdgesOrDie = do
 
 
 loadEdges :: Shell Edge
-loadEdges = -- TODO this throws an exception in case no files are found
+loadEdges =
   parseEdges =<< inshell "cat *.usages" empty
 
 
@@ -301,7 +300,7 @@ buildCompletionFunction DepGraph{declToNode, functionNameToNodes} = Repl.complet
     fullyQualifiedSuggestions = Text.unpack . formatNode Full <$> Map.keys declToNode
 
     functionNameSuggestions = Text.unpack . unFunctionName <$> Map.keys functionNameToNodes
-    -- TODO also make the autocompletion work for queries of the form `Module:function` even for modules from external packages
+
     lookupCompletions prefix = pure
       . fmap Repl.simpleCompletion
       . filter (List.isPrefixOf prefix)
@@ -313,6 +312,7 @@ data LookupResult
   | InvalidQuery Text
   | NotFound Text
   | Ambiguous (NonEmpty Decl)
+
 
 instance Item Decl where
   showItem decl = Text.unpack $ formatNode Full decl
