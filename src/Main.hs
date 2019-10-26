@@ -44,13 +44,13 @@ import qualified Terminal.Commands                 as Cmd
 main :: IO ()
 main = do
   edges <- loadEdgesOrDie
-  let fcg = buildFunctionCallGraph edges
-  reportSize fcg
-  terminalUI fcg defaultSettings
+  let depGraph = buildDepGraph edges
+  reportSize depGraph
+  terminalUI depGraph defaultSettings
 
 
-showDfsSubgraph :: FunctionCallGraph -> Settings -> [G.Node] -> IO ()
-showDfsSubgraph FCG{graph,currentPackage} settings nodeIds = do
+showDfsSubgraph :: DepGraph -> Settings -> [G.Node] -> IO ()
+showDfsSubgraph DepGraph{graph,currentPackage} settings nodeIds = do
   let reachableNodeIds = DFS.dfs nodeIds $
         case _dependencyMode settings of
           Forward -> graph
@@ -145,28 +145,28 @@ parseEdges line = select
     ((p1,m1,f1), decls) = read . Text.unpack $ lineToText line
 
 
-processNode :: Decl -> State FunctionCallGraph ()
+processNode :: Decl -> State DepGraph ()
 processNode decl@(Decl _ _ fname) =
-  State.modify' $ \(FCG decls funs graph pkg) ->
+  State.modify' $ \(DepGraph decls funs graph pkg) ->
     let newDecls = Map.alter (Just . fromMaybe (Map.size decls)) decl decls
         newFuns = Map.insertWith (<>) fname (Set.singleton decl) funs
         nodeId = newDecls Map.! decl
         newGraph = if G.gelem nodeId graph then graph else G.insNode (nodeId, decl) graph
-    in FCG newDecls newFuns newGraph pkg
+    in DepGraph newDecls newFuns newGraph pkg
 
 
-processEdges :: Edge -> State FunctionCallGraph ()
+processEdges :: Edge -> State DepGraph ()
 processEdges (a,b) = do
   processNode a
   processNode b
-  State.modify' $ \(FCG decls funs g pkg) ->
+  State.modify' $ \(DepGraph decls funs g pkg) ->
     let fromId = decls Map.! a
         toId = decls Map.! b
         newGraph = G.insEdge (fromId, toId, ()) g
-    in FCG decls funs newGraph pkg
+    in DepGraph decls funs newGraph pkg
 
 
-data FunctionCallGraph = FCG
+data DepGraph = DepGraph
   { declToNode          :: Map Decl G.Node -- ^ map declarations to the node ID used in the graph
   -- Invariant: function names in this map are exactly those that occur in the _declToNode
   , functionNameToNodes :: Map FunctionName (Set Decl) -- ^ Map name of function to the set of declarations that have this function name
@@ -178,11 +178,11 @@ data FunctionCallGraph = FCG
 type Graph = Gr Decl ()
 
 
-buildFunctionCallGraph :: NonEmpty Edge -> FunctionCallGraph
-buildFunctionCallGraph edges =
+buildDepGraph :: NonEmpty Edge -> DepGraph
+buildDepGraph edges =
     State.execState
         (traverse_ processEdges edges)
-        (FCG Map.empty Map.empty G.empty currentPackage)
+        (DepGraph Map.empty Map.empty G.empty currentPackage)
   where
     currentPackage = _decl_package . fst $ NonEmpty.head edges
 
@@ -200,15 +200,15 @@ cliInfo msg = Text.putStrLn $ green <> msg <> reset
 cliWarn msg = Text.putStrLn $ red <> msg <> reset
 
 
-reportSize :: FunctionCallGraph -> IO ()
-reportSize FCG{graph} =
+reportSize :: DepGraph -> IO ()
+reportSize DepGraph{graph} =
     printf ("Loaded function dependency graph with "%d%" nodes and "%d%" edges.\n") (G.noNodes graph) (G.size graph)
 
 
-terminalUI :: FunctionCallGraph -> Settings -> IO ()
-terminalUI fcg@FCG{currentPackage, graph, declToNode} settings_ = do
+terminalUI :: DepGraph -> Settings -> IO ()
+terminalUI depGraph@DepGraph{currentPackage, graph, declToNode} settings_ = do
     Text.putStrLn Cmd.typeHelp
-    let completionFunc = buildCompletionFunction fcg
+    let completionFunc = buildCompletionFunction depGraph
     let settingsWithCompletion = Repl.setComplete completionFunc Repl.defaultSettings
     Repl.runInputT settingsWithCompletion $ loop settings_
   where
@@ -235,7 +235,7 @@ terminalUI fcg@FCG{currentPackage, graph, declToNode} settings_ = do
           where
             processQuery :: Text -> IO ()
             processQuery query = do
-              let lookupResults = parseQuery fcg query
+              let lookupResults = parseQuery depGraph query
               unless (null lookupResults) $ case partitionLookupResults lookupResults of
                 Left (notFounds, invalidQueries) -> do
                   for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
@@ -248,7 +248,7 @@ terminalUI fcg@FCG{currentPackage, graph, declToNode} settings_ = do
                       ]
                 Right (foundIds1, ambiguous) -> do
                   foundIds2 <- traverse (fmap (declToNode Map.!) . pickAnItem) ambiguous
-                  showDfsSubgraph fcg settings $ foundIds1 <> foundIds2
+                  showDfsSubgraph depGraph settings $ foundIds1 <> foundIds2
 
 
 partitionLookupResults :: [LookupResult] -> Either ([Text],[Text]) ([G.Node], [NonEmpty Decl])
@@ -266,15 +266,15 @@ partitionLookupResults = foldr step (Right ([],[]))
       Ambiguous a     -> Right (founds, a:ambiguous)
 
 
-parseQuery :: FunctionCallGraph -> Text -> [LookupResult]
-parseQuery fcg searchText =
-    fmap (lookupFunctionId fcg) searchTerms
+parseQuery :: DepGraph -> Text -> [LookupResult]
+parseQuery depGraph searchText =
+    fmap (lookupFunctionId depGraph) searchTerms
   where
     searchTerms = filter (not . Text.null) . fmap Text.strip $ Text.splitOn "," searchText
 
 
-lookupFunctionId :: FunctionCallGraph -> Text -> LookupResult
-lookupFunctionId (FCG decls funs _ _) searchText =
+lookupFunctionId :: DepGraph -> Text -> LookupResult
+lookupFunctionId (DepGraph decls funs _ _) searchText =
   case Text.splitOn ":" searchText of
     [p,m,f] -> lookupUnique (Decl (PackageName p) (ModuleName m) (FunctionName f))
     [m,f]   -> lookupUnique (Decl (PackageName "") (ModuleName m) (FunctionName f))
@@ -293,8 +293,8 @@ lookupFunctionId (FCG decls funs _ _) searchText =
       Just nodeId -> FoundUnique nodeId
 
 
-buildCompletionFunction :: FunctionCallGraph -> Repl.CompletionFunc IO
-buildCompletionFunction FCG{declToNode, functionNameToNodes} = Repl.completeWord Nothing whitespace lookupCompletions
+buildCompletionFunction :: DepGraph -> Repl.CompletionFunc IO
+buildCompletionFunction DepGraph{declToNode, functionNameToNodes} = Repl.completeWord Nothing whitespace lookupCompletions
   where
     whitespace = [] -- Empty list = everything is treated as one word to allow autocompletion of things including spaces, like ":set SETTING"
 
