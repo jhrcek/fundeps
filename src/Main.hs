@@ -5,7 +5,8 @@
 
 module Main where
 
-import qualified Control.Foldl                     as F
+import           Control.Concurrent                (forkIO)
+import qualified Control.Foldl                     as Fold
 import           Control.Monad.Trans.State.Strict  (State)
 import qualified Control.Monad.Trans.State.Strict  as State
 import           Data.Foldable                     (for_, traverse_)
@@ -79,7 +80,9 @@ drawInCanvas settings graph =
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
         & if _transitiveReduction settings then Data.GraphViz.Algorithms.transitiveReduction else id
-  in GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
+  in void . forkIO $
+      --TODO make graphviz command used for rendering (dot, neato etc.) configurable
+      GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
 
 
 excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
@@ -121,7 +124,7 @@ type Edge = (Decl, Decl)
 
 loadEdgesOrDie :: IO (NonEmpty Edge)
 loadEdgesOrDie = do
-  edges <- fold loadEdges F.list
+  edges <- fold loadEdges Fold.list
   case NonEmpty.nonEmpty edges of
     Nothing       -> die "No edges were loaded"
     Just nonEmpty -> pure nonEmpty
@@ -244,7 +247,7 @@ terminalUI fcg@FCG{currentPackage, graph, declToNode} settings_ = do
                       , "  - package:module:function"
                       ]
                 Right (foundIds1, ambiguous) -> do
-                  foundIds2 <- traverse (fmap (\decl -> declToNode Map.! decl) . pickAnItem) ambiguous
+                  foundIds2 <- traverse (fmap (declToNode Map.!) . pickAnItem) ambiguous
                   showDfsSubgraph fcg settings $ foundIds1 <> foundIds2
 
 
