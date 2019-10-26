@@ -49,17 +49,19 @@ main = do
 
 showDfsSubgraph :: FunctionCallGraph -> Settings -> [G.Node] -> IO ()
 showDfsSubgraph fcg settings nodeIds = do
-  let graph = case _dependencyMode settings of
-        Forward ->           _graph fcg
-        Reverse -> GB.grev $ _graph fcg
+  let
+      graph = _graph fcg
 
       currentPackage = _currentPackage fcg
 
-      reachableNodeIds = DFS.dfs nodeIds graph
+      reachableNodeIds = DFS.dfs nodeIds $
+        case _dependencyMode settings of
+          Forward -> graph
+          Reverse -> GB.grev graph
 
-      subGraph = _graph fcg
-        & G.subgraph reachableNodeIds
-        & if _includeExternalPackages settings then id else G.labfilter ((currentPackage == ) . _decl_package)
+      subGraph =
+        G.subgraph reachableNodeIds graph
+        & excludeExternalPackages settings currentPackage
 
       excludedNodeIds = filter (\nodeId -> not (G.gelem nodeId subGraph)) nodeIds
 
@@ -67,7 +69,7 @@ showDfsSubgraph fcg settings nodeIds = do
   unless (null excludedNodeIds) $ do
     cliWarn "These functions were excluded from the graph, because they come from external packages:"
     for_ excludedNodeIds $ \nodeId ->
-      maybe (pure ()) (cliWarn . (" • " <>) . formatNode Full) $ G.lab (_graph fcg) nodeId
+      maybe (pure ()) (cliWarn . (" • " <>) . formatNode Full) $ G.lab graph nodeId
     cliWarn "Run `:set include.external.packages True` to include them"
 
   when (G.noNodes subGraph /= 0) $ do
@@ -75,13 +77,19 @@ showDfsSubgraph fcg settings nodeIds = do
       drawInCanvas settings subGraph
 
 
-drawInCanvas :: Settings -> Gr Decl () -> IO ()
+drawInCanvas :: Settings -> Graph -> IO ()
 drawInCanvas settings graph =
   let dotGraph = graph
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
         & if _transitiveReduction settings then Data.GraphViz.Algorithms.transitiveReduction else id
   in GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
+
+
+excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
+excludeExternalPackages settings currentPackage graph
+    | _includeExternalPackages settings = graph
+    | otherwise                         = G.labfilter ((currentPackage == ) . _decl_package) graph
 
 
 gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () () Decl
@@ -221,7 +229,10 @@ terminalUI fcg settings_ = do
               Cmd.Query query -> liftIO (processQuery query) >> loop settings
               Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
-              Cmd.ShowGraph -> liftIO (drawInCanvas settings (_graph fcg)) >> loop settings
+              Cmd.ShowGraph -> do
+                let graph = excludeExternalPackages settings (_currentPackage fcg) (_graph fcg)
+                liftIO (drawInCanvas settings graph)
+                loop settings
               Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
           where
             processQuery :: Text -> IO ()
