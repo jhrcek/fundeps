@@ -10,6 +10,8 @@ module Terminal.Commands
   ) where
 
 import           Data.GraphViz.Attributes.Complete (RankDir (..))
+import           Data.GraphViz.Commands            (GraphvizCommand)
+import qualified Data.GraphViz.Commands            as GVCmd
 import           Data.Text                         (Text)
 import qualified Data.Text                         as Text
 import qualified Data.Text.IO                      as Text
@@ -35,8 +37,9 @@ parseCommand text = case Text.words text of
 
 parseAdjustSetting :: [Text] -> Either Text AdjustSetting
 parseAdjustSetting xs = case xs of
-  ["include.external.packages", value] -> IncludeExternalPackages <$> parseBool value
   ["allow.multi.edges", value]         -> AllowMultiEdges <$> parseBool value
+  ["graphviz.command", value]          -> SetGraphVizCommand <$> parseGraphVizCommand value
+  ["include.external.packages", value] -> IncludeExternalPackages <$> parseBool value
   ["rank.dir", value]                  -> SetRankDir <$> parseRankDir value
   ["dependency.mode", value]           -> SetDependencyMode <$> parseDependencyMode value
   ["transitive.reduction", value]      -> RunTransitiveReduction <$> parseBool value
@@ -68,6 +71,21 @@ parseDependencyMode word = case word of
   _         -> Left $ word <> "is not a valid browsing mode. Valid values are: Forward|Reverse"
 
 
+parseGraphVizCommand :: Text -> Either Text GraphvizCommand
+parseGraphVizCommand x = case x of
+  "Dot"       -> Right GVCmd.Dot
+  "Neato"     -> Right GVCmd.Neato
+  "TwoPi"     -> Right GVCmd.TwoPi
+  "Circo"     -> Right GVCmd.Circo
+  -- TODO experiment with these to find out which are worth including in the terminal UI
+  -- "Fdp"       -> Right GVCmd.Fdp
+  -- "Sfdp"      -> Right GVCmd.Sfdp
+  -- "Osage"     -> Right GVCmd.Osage
+  -- "Patchwork" -> Right GVCmd.Patchwork
+  _           -> Left $ "'" <> x <> "' is not a name of valid GraphViz command. Valid values are: Dot|Neato|TwoPi|Circo" -- "|Fdp|Sfdp|Osage|Patchwork"
+
+
+
 showRankDir :: RankDir -> Text
 showRankDir rd = case rd of
     FromRight  -> "RL"
@@ -89,8 +107,9 @@ data AdjustSetting
   = AllowMultiEdges Bool
   | RunTransitiveReduction Bool
   | IncludeExternalPackages Bool
-  | SetRankDir RankDir
   | SetDependencyMode DependencyMode
+  | SetGraphVizCommand GraphvizCommand
+  | SetRankDir RankDir
 
 
 adjustSettings :: AdjustSetting -> Settings -> Settings
@@ -99,8 +118,9 @@ adjustSettings a settings =
     AllowMultiEdges flag         -> settings { _allowMultiEdges = flag }
     RunTransitiveReduction flag  -> settings { _transitiveReduction = flag }
     IncludeExternalPackages flag -> settings { _includeExternalPackages = flag }
-    SetRankDir rankDir           -> settings { _rankDir = rankDir }
     SetDependencyMode mode       -> settings { _dependencyMode = mode }
+    SetGraphVizCommand command   -> settings { _graphvizCommand = command }
+    SetRankDir rankDir           -> settings { _rankDir = rankDir }
 
 
 showSettings :: Settings -> IO ()
@@ -108,6 +128,7 @@ showSettings settings =
   Text.putStrLn $ Text.unlines
     [ "allow.multi.edges = " <> repr (_allowMultiEdges settings)
     , "dependency.mode = " <> repr (_dependencyMode settings)
+    , "graphviz.command = " <> repr (_graphvizCommand settings)
     , "include.external.packages = " <> repr (_includeExternalPackages settings)
     , "rank.dir = " <> showRankDir (_rankDir settings)
     , "transitive.reduction = " <> repr (_transitiveReduction settings)
@@ -128,10 +149,15 @@ showHelp = putStrLn $ unlines
  , "  SETTING                    POSSIBLE VALUES     LEGEND"
  , "  allow.multi.edges          True|False          Enable showing multiple edges"
  , "  dependency.mode            Forward|Reverse     Whether to search for dependencies of reverse dependencies"
+ , "  graphviz.command           Dot|Neato|TwoPi|Circo"
+ , "                                                 GraphViz program used to generate the graph"
  , "  include.external.packages  True|False          Include functions from external packages (like elm/core)?"
  , "  rank.dir                   LR|RL|TB|BT         GraphViz rank direction"
  , "  transitive.reduction       True|False          Run transitive reduction on graph before displaying it"
  ]
+
+
+
 
 
 commandSuggestions :: [String]
@@ -142,6 +168,7 @@ commandSuggestions =
   , ":show"
   , ":set allow.multi.edges"
   , ":set dependency.mode"
+  , ":set graphviz.command"
   , ":set include.external.packages"
   , ":set rank.dir"
   , ":set transitive.reduction"

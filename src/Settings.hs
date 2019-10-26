@@ -6,11 +6,13 @@ module Settings
   ) where
 
 import           Data.GraphViz.Attributes.Complete (RankDir (FromLeft))
+import           Data.GraphViz.Commands            (GraphvizCommand (Dot))
 
 
 data Settings = Settings
    { _allowMultiEdges         :: Bool
    , _dependencyMode          :: DependencyMode
+   , _graphvizCommand         :: GraphvizCommand
    , _includeExternalPackages :: Bool
    , _nodeFormat              :: NodeFormat
    , _rankDir                 :: RankDir
@@ -22,6 +24,7 @@ defaultSettings :: Settings
 defaultSettings = Settings
    { _allowMultiEdges = True
    , _dependencyMode = Reverse
+   , _graphvizCommand = Dot
    , _includeExternalPackages = False
    , _nodeFormat = WithoutPackage
    , _rankDir = FromLeft

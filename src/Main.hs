@@ -80,8 +80,9 @@ drawInCanvas settings graph =
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
         & if _transitiveReduction settings then Data.GraphViz.Algorithms.transitiveReduction else id
+      command = _graphvizCommand settings
   in void . forkIO $
-      GvCmd.runGraphvizCanvas' dotGraph GvCmd.Xlib
+      GvCmd.runGraphvizCanvas command dotGraph GvCmd.Xlib
 
 
 excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
