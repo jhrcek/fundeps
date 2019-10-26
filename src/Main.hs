@@ -20,6 +20,7 @@ import           Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir),
 import qualified Data.GraphViz.Commands            as GvCmd
 import qualified Data.List                         as List
 import           Data.List.NonEmpty                (NonEmpty ((:|)))
+import qualified Data.List.NonEmpty                as NonEmpty
 import           Data.Map.Strict                   (Map)
 import qualified Data.Map.Strict                   as Map
 import           Data.Maybe                        (fromMaybe)
@@ -40,7 +41,8 @@ import qualified Terminal.Commands                 as Cmd
 
 main :: IO ()
 main = do
-  fcg <- buildFunctionCallGraph
+  edges <- loadEdgesOrDie
+  let fcg = buildFunctionCallGraph edges
   reportSize fcg
   terminalUI fcg defaultSettings
 
@@ -113,6 +115,14 @@ newtype FunctionName = FunctionName { unFunctionName :: Text } deriving (Eq, Ord
 type Edge = (Decl, Decl)
 
 
+loadEdgesOrDie :: IO (NonEmpty Edge)
+loadEdgesOrDie = do
+  edges <- fold loadEdges F.list
+  case NonEmpty.nonEmpty edges of
+    Nothing       -> die "No edges were loaded"
+    Just nonEmpty -> pure nonEmpty
+
+
 loadEdges :: Shell Edge
 loadEdges = -- TODO this throws an exception in case no files are found
   parseEdges =<< inshell "cat *.usages" empty
@@ -125,7 +135,7 @@ parseEdges line = select
       )
     | (p2,m2,f2) <- decls ]
   where
-    ((p1,m1,f1), decls ) = read . Text.unpack $ lineToText line
+    ((p1,m1,f1), decls) = read . Text.unpack $ lineToText line
 
 
 processNode :: Decl -> State FunctionCallGraph ()
@@ -161,16 +171,14 @@ data FunctionCallGraph = FCG
 type Graph = Gr Decl ()
 
 
-buildFunctionCallGraph :: IO FunctionCallGraph
-buildFunctionCallGraph = do
-    -- TODO it should be possible to fold into graph without materializing the whole list into memory
-    edges <- fold loadEdges F.list
-    currentPackage <- case edges of
-          []                    -> die "TODO: No edges were loaded"
-          ((Decl pkg _ _, _):_) -> pure pkg
-    pure $ State.execState
+buildFunctionCallGraph :: NonEmpty Edge -> FunctionCallGraph
+buildFunctionCallGraph edges =
+    State.execState
         (traverse_ processEdges edges)
         (FCG Map.empty Map.empty G.empty currentPackage)
+  where
+    currentPackage = _decl_package . fst $ NonEmpty.head edges
+
 
 -- TERMINAL UI STUFF
 
