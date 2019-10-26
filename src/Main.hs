@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingVia       #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import qualified Control.Foldl                     as F
@@ -114,17 +115,17 @@ type Edge = (Decl, Decl)
 
 loadEdges :: Shell Edge
 loadEdges = -- TODO this throws an exception in case no files are found
-  parseEdge <$> inshell "cat *.functionUsages" empty
+  parseEdges =<< inshell "cat *.usages" empty
 
 
---TODO better representation for serializing function dependency data
-parseEdge :: Line -> Edge
-parseEdge line =
-    ( Decl (PackageName p1) (ModuleName m1) (FunctionName f1)
-    , Decl (PackageName p2) (ModuleName m2) (FunctionName f2)
-    )
+parseEdges :: Line -> Shell Edge
+parseEdges line = select
+    [ ( Decl (PackageName p1) (ModuleName m1) (FunctionName f1)
+      , Decl (PackageName p2) (ModuleName m2) (FunctionName f2)
+      )
+    | (p2,m2,f2) <- decls ]
   where
-    ((p1,m1,f1),(p2,m2,f2)) = read . Text.unpack $ lineToText line
+    ((p1,m1,f1), decls ) = read . Text.unpack $ lineToText line
 
 
 processNode :: Decl -> State FunctionCallGraph ()
@@ -282,7 +283,7 @@ buildCompletionFunction fcg = Repl.completeWord Nothing whitespace lookupComplet
     fullyQualifiedSuggestions = fmap (Text.unpack . formatNode Full) . Map.keys $ _declToNode fcg
 
     functionNameSuggestions = fmap (Text.unpack . unFunctionName) . Map.keys $ _functionNameToNodes fcg
-
+    -- TODO also make the autocompletion work for queries of the form `Module:function` even for modules from external packages
     lookupCompletions prefix = pure
       . fmap Repl.simpleCompletion
       . filter (List.isPrefixOf prefix)
