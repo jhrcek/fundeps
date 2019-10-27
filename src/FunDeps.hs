@@ -3,7 +3,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+module FunDeps (main) where
 
 import           Control.Concurrent                (forkIO)
 import qualified Control.Foldl                     as Fold
