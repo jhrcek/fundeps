@@ -35,10 +35,11 @@ import qualified System.Console.Haskeline          as Repl
 import           Terminal                          (Item (..), pickAnItem)
 import           Turtle                            hiding (f, g, prefix, sortOn)
 
-import           Settings                          (DependencyMode (..),
-                                                    NodeFormat (..),
+import           Settings                          (NodeFormat (..),
+                                                    SearchMode (..),
                                                     Settings (..),
                                                     defaultSettings)
+import qualified Terminal.Ansi                     as Ansi
 import qualified Terminal.Commands                 as Cmd
 
 main :: IO ()
@@ -53,8 +54,8 @@ showDfsSubgraph :: DepGraph -> Settings -> [G.Node] -> IO ()
 showDfsSubgraph DepGraph{graph,currentPackage} settings nodeIds = do
   let reachableNodeIds = DFS.dfs nodeIds $
         case _dependencyMode settings of
-          Forward -> graph
-          Reverse -> GB.grev graph
+          Callees -> graph
+          Callers -> GB.grev graph
 
       subGraph =
         G.subgraph reachableNodeIds graph
@@ -189,15 +190,9 @@ buildDepGraph edges =
 
 -- TERMINAL UI STUFF
 
-green, red, reset :: Text
-green = "\ESC[32m"
-red = "\ESC[31m"
-reset = "\ESC[0m"
-
-
 cliInfo, cliWarn :: Text -> IO ()
-cliInfo msg = Text.putStrLn $ green <> msg <> reset
-cliWarn msg = Text.putStrLn $ red <> msg <> reset
+cliInfo msg = Text.putStrLn $ Ansi.green msg
+cliWarn msg = Text.putStrLn $ Ansi.red msg
 
 
 reportSize :: DepGraph -> IO ()

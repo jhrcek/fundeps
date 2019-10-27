@@ -2,7 +2,8 @@
 
 Experimental visualization of elm declaration dependencies.
 
-TODO: make this into library
-TODO: deal with cases when \*.usages files are not found
-TODO: make the autocompletion work for queries of the form `Module:function` even for modules from external packages
-TODO: ask for confirmation when displaying too large graphs
+# TODOs
+* Make this into library
+* Deal with cases when \*.usages files are not found
+* Make the autocompletion work for queries of the form `Module:function` even for modules from external packages
+* Ask for confirmation when displaying too large graphs

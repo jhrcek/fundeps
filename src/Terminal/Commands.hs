@@ -16,8 +16,8 @@ import           Data.Text                         (Text)
 import qualified Data.Text                         as Text
 import qualified Data.Text.IO                      as Text
 import           Settings
+import qualified Terminal.Ansi                     as Ansi
 import           Turtle                            (repr)
-
 
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands and settings"
@@ -41,7 +41,7 @@ parseAdjustSetting xs = case xs of
   ["graphviz.command", value]          -> SetGraphVizCommand <$> parseGraphVizCommand value
   ["include.external.packages", value] -> IncludeExternalPackages <$> parseBool value
   ["rank.dir", value]                  -> SetRankDir <$> parseRankDir value
-  ["dependency.mode", value]           -> SetDependencyMode <$> parseDependencyMode value
+  ["search.mode", value]               -> SetSearchMode <$> parseSearchMode value
   ["transitive.reduction", value]      -> RunTransitiveReduction <$> parseBool value
   [unknown, _]                         -> Left $ "'" <> unknown <> "' is not recognized setting. " <> typeHelp
   []                                   -> Left $ "Please provide name and value of some setting. " <> typeHelp
@@ -54,21 +54,21 @@ parseRankDir word = case word of
   "LR" -> Right FromLeft
   "TB" -> Right FromTop
   "BT" -> Right FromBottom
-  _    -> Left $ word <> " is not a valid RankDir. Valid values are: LR|RL|TB|BT"
+  _    -> Left $ word <> " is not a valid RankDir. Valid values are: LR, RL, TB, BT"
 
 
 parseBool :: Text -> Either Text Bool
 parseBool word = case word of
   "True"  -> Right True
   "False" -> Right False
-  _       -> Left $ word <> " is not a valid Bool. Valid values are: True|False"
+  _       -> Left $ word <> " is not a valid Bool. Valid values are: True, False"
 
 
-parseDependencyMode :: Text -> Either Text DependencyMode
-parseDependencyMode word = case word of
-  "Forward" -> Right Forward
-  "Reverse" -> Right Reverse
-  _         -> Left $ word <> "is not a valid browsing mode. Valid values are: Forward|Reverse"
+parseSearchMode :: Text -> Either Text SearchMode
+parseSearchMode word = case word of
+  "Callees" -> Right Callees
+  "Callers" -> Right Callers
+  _         -> Left $ word <> "is not a valid search mode. Valid values are: Callees, Callers"
 
 
 parseGraphVizCommand :: Text -> Either Text GraphvizCommand
@@ -82,7 +82,7 @@ parseGraphVizCommand x = case x of
   -- "Sfdp"      -> Right GVCmd.Sfdp
   -- "Osage"     -> Right GVCmd.Osage
   -- "Patchwork" -> Right GVCmd.Patchwork
-  _           -> Left $ "'" <> x <> "' is not a name of valid GraphViz command. Valid values are: Dot|Neato|TwoPi|Circo" -- "|Fdp|Sfdp|Osage|Patchwork"
+  _           -> Left $ "'" <> x <> "' is not a name of valid GraphViz command. Valid values are: Dot, Neato, TwoPi, Circo" -- ", Fdp, Sfdp, Osage, Patchwork"
 
 
 
@@ -107,7 +107,7 @@ data AdjustSetting
   = AllowMultiEdges Bool
   | RunTransitiveReduction Bool
   | IncludeExternalPackages Bool
-  | SetDependencyMode DependencyMode
+  | SetSearchMode SearchMode
   | SetGraphVizCommand GraphvizCommand
   | SetRankDir RankDir
 
@@ -118,7 +118,7 @@ adjustSettings a settings =
     AllowMultiEdges flag         -> settings { _allowMultiEdges = flag }
     RunTransitiveReduction flag  -> settings { _transitiveReduction = flag }
     IncludeExternalPackages flag -> settings { _includeExternalPackages = flag }
-    SetDependencyMode mode       -> settings { _dependencyMode = mode }
+    SetSearchMode mode       -> settings { _dependencyMode = mode }
     SetGraphVizCommand command   -> settings { _graphvizCommand = command }
     SetRankDir rankDir           -> settings { _rankDir = rankDir }
 
@@ -136,7 +136,7 @@ showSettings settings =
 
 
 showHelp :: IO ()
-showHelp = putStrLn $ unlines
+showHelp = Text.putStrLn $ Text.unlines
  [ "COMMANDS"
  , "  <query>               Search function by name"
  , "  :help                 Display this help"
@@ -146,18 +146,14 @@ showHelp = putStrLn $ unlines
  , "  :set SETTING VALUE    Set given SETTING to given VALUE"
  , ""
  , "SETTINGS"
- , "  SETTING                    POSSIBLE VALUES     LEGEND"
- , "  allow.multi.edges          True|False          Enable showing multiple edges"
- , "  dependency.mode            Forward|Reverse     Whether to search for dependencies of reverse dependencies"
- , "  graphviz.command           Dot|Neato|TwoPi|Circo"
- , "                                                 GraphViz program used to generate the graph"
- , "  include.external.packages  True|False          Include functions from external packages (like elm/core)?"
- , "  rank.dir                   LR|RL|TB|BT         GraphViz rank direction"
- , "  transitive.reduction       True|False          Run transitive reduction on graph before displaying it"
+ , "  NAME                        VALID VALUES (" <> Ansi.bold "Default" <> ")  LEGEND"
+ , "  allow.multi.edges           " <> Ansi.bold "True" <> "|False              Enable showing multiple edges?"
+ , "  graphviz.command            " <> Ansi.bold "Dot" <> "|Neato|TwoPi|Circo   GraphViz program used to generate the graph"
+ , "  include.external.packages   " <> Ansi.bold "False" <> "|True              Include functions from external packages (like elm/core)?"
+ , "  rank.dir                    " <> Ansi.bold "LR" <> "|RL|TB|BT             GraphViz rank direction"
+ , "  search.mode                 " <> Ansi.bold "Callers" <> "|Callees         Display callers (= functions which call X) or callees (= functions which X calls)?"
+ , "  transitive.reduction        " <> Ansi.bold "False" <> "|True              Run transitive reduction on graph before displaying it?"
  ]
-
-
-
 
 
 commandSuggestions :: [String]
@@ -167,7 +163,7 @@ commandSuggestions =
   , ":quit"
   , ":show"
   , ":set allow.multi.edges"
-  , ":set dependency.mode"
+  , ":set search.mode"
   , ":set graphviz.command"
   , ":set include.external.packages"
   , ":set rank.dir"

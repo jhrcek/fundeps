@@ -1,5 +1,5 @@
 module Settings
-  ( DependencyMode(..)
+  ( SearchMode(..)
   , Settings(..)
   , NodeFormat(..)
   , defaultSettings
@@ -11,7 +11,7 @@ import           Data.GraphViz.Commands            (GraphvizCommand (Dot))
 
 data Settings = Settings
    { _allowMultiEdges         :: Bool
-   , _dependencyMode          :: DependencyMode
+   , _dependencyMode          :: SearchMode
    , _graphvizCommand         :: GraphvizCommand
    , _includeExternalPackages :: Bool
    , _nodeFormat              :: NodeFormat
@@ -23,7 +23,7 @@ data Settings = Settings
 defaultSettings :: Settings
 defaultSettings = Settings
    { _allowMultiEdges = True
-   , _dependencyMode = Reverse
+   , _dependencyMode = Callers
    , _graphvizCommand = Dot
    , _includeExternalPackages = False
    , _nodeFormat = WithoutPackage
@@ -37,7 +37,7 @@ data NodeFormat
   | WithoutPackage
 
 
-data DependencyMode
-  = Forward
-  | Reverse
+data SearchMode
+  = Callees
+  | Callers
   deriving Show
