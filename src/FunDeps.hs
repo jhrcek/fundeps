@@ -25,7 +25,7 @@ import           Data.List.NonEmpty                (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                as NonEmpty
 import           Data.Map.Strict                   (Map)
 import qualified Data.Map.Strict                   as Map
-import           Data.Maybe                        (fromMaybe)
+import           Data.Maybe                        (fromMaybe, mapMaybe)
 import           Data.Set                          (Set)
 import qualified Data.Set                          as Set
 import qualified Data.Text                         as Text
@@ -57,39 +57,45 @@ showDfsSubgraph DepGraph{graph,currentPackage} settings nodeIds = do
           Callees -> graph
           Callers -> GB.grev graph
 
-      subGraph =
-        G.subgraph reachableNodeIds graph
-        & excludeExternalPackages settings currentPackage
-
-      excludedNodeIds = filter (\nodeId -> not (G.gelem nodeId subGraph)) nodeIds
+      subGraph = G.subgraph reachableNodeIds graph
 
   -- Warn about search nodes being excluded due to being from external packages
-  unless (null excludedNodeIds) $ do
-    cliWarn "These functions were excluded from the graph, because they come from external packages:"
-    for_ excludedNodeIds $ \nodeId ->
-      maybe (pure ()) (cliWarn . (" • " <>) . formatNode Full) $ G.lab graph nodeId
-    cliWarn "Run `:set include.external.packages True` to include them"
+  unless (_includeExternalPackages settings) $ do
+    let excludedDecls = mapMaybe (\nodeId -> do
+          decl <- G.lab graph nodeId
+          guard (_decl_package decl /= currentPackage)
+          pure $ formatNode Full decl) nodeIds
+    unless (null excludedDecls) $ do
+        cliWarn "These functions were excluded from the graph, because they come from external packages:"
+        traverse_ (cliWarn . (" • " <>)) excludedDecls
+        cliWarn "Run `:set include.external.packages True` to include them"
 
-  when (G.noNodes subGraph /= 0) $ do
-      printf ("Showing subgraph with "%d%" nodes, "%d%" edges\n") (G.noNodes subGraph) (G.size subGraph)
-      drawInCanvas settings subGraph
+  when (G.noNodes subGraph /= 0) $
+      drawInCanvas settings currentPackage subGraph
 
 
-drawInCanvas :: Settings -> Graph -> IO ()
-drawInCanvas settings graph =
-  let dotGraph = graph
+drawInCanvas :: Settings -> PackageName -> Graph -> IO ()
+drawInCanvas settings currentPackage graph = do
+  let graph1 = excludeExternalPackages settings currentPackage graph
+      dotGraph = graph1
         & GraphViz.graphToDot (gvParams settings)
         & GraphViz.setStrictness (not $ _allowMultiEdges settings)
-        & if _transitiveReduction settings then Data.GraphViz.Algorithms.transitiveReduction else id
+        & removeTransitiveEdges settings
       command = _graphvizCommand settings
-  in void . forkIO $
-      GvCmd.runGraphvizCanvas command dotGraph GvCmd.Xlib
+  printf ("Showing graph with "%d%" nodes, "%d%" edges\n") (G.noNodes graph1) (G.size graph1)
+  void . forkIO $ GvCmd.runGraphvizCanvas command dotGraph GvCmd.Xlib
 
 
 excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
-excludeExternalPackages settings currentPackage graph
-    | _includeExternalPackages settings = graph
-    | otherwise                         = G.labfilter ((currentPackage == ) . _decl_package) graph
+excludeExternalPackages settings currentPackage
+    | _includeExternalPackages settings = id
+    | otherwise                         = G.labfilter ((currentPackage ==) . _decl_package)
+
+
+removeTransitiveEdges :: Settings -> GraphViz.DotGraph G.Node -> GraphViz.DotGraph G.Node
+removeTransitiveEdges settings
+    | _transitiveReduction settings = Data.GraphViz.Algorithms.transitiveReduction
+    | otherwise = id
 
 
 gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () () Decl
@@ -219,18 +225,19 @@ terminalUI depGraph@DepGraph{currentPackage, graph, declToNode} settings_ = do
               Cmd.AdjustSettings change ->
                 let newSettings = Cmd.adjustSettings change settings
                 in loop newSettings
-              Cmd.Query query -> liftIO (processQuery query) >> loop settings
+              Cmd.Query query  -> liftIO (processQuery query) >> loop settings
               Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
-              Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
-              Cmd.ShowGraph -> do
-                let graph' = excludeExternalPackages settings currentPackage graph
-                liftIO (drawInCanvas settings graph')
-                loop settings
-              Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
+              Cmd.ShowHelp     -> liftIO Cmd.showHelp >> loop settings
+              Cmd.ShowGraph    -> liftIO (drawInCanvas settings currentPackage graph) >> loop settings
+              Cmd.Quit         -> liftIO (cliInfo "Bye!") >> pure ()
           where
             processQuery :: Text -> IO ()
             processQuery query = do
               let lookupResults = parseQuery depGraph query
+
+                  disambiguate :: NonEmpty Decl -> IO G.Node
+                  disambiguate = fmap (declToNode Map.!) . pickAnItem
+
               unless (null lookupResults) $ case partitionLookupResults lookupResults of
                 Left (notFounds, invalidQueries) -> do
                   for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
@@ -242,7 +249,7 @@ terminalUI depGraph@DepGraph{currentPackage, graph, declToNode} settings_ = do
                       , "  - package:module:function"
                       ]
                 Right (foundIds1, ambiguous) -> do
-                  foundIds2 <- traverse (fmap (declToNode Map.!) . pickAnItem) ambiguous
+                  foundIds2 <- traverse disambiguate ambiguous
                   showDfsSubgraph depGraph settings $ foundIds1 <> foundIds2
 
 
