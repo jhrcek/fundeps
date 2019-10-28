@@ -4,7 +4,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module FunDeps (main) where
-
 import           Control.Concurrent                (forkIO)
 import qualified Control.Foldl                     as Fold
 import           Control.Monad.Trans.State.Strict  (State)
@@ -20,6 +19,7 @@ import           Data.GraphViz.Attributes          (Shape (BoxShape), shape)
 import           Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir),
                                                     Label (StrLabel))
 import qualified Data.GraphViz.Commands            as GvCmd
+import qualified Data.GraphViz.Types               as GvTypes
 import qualified Data.List                         as List
 import           Data.List.NonEmpty                (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty                as NonEmpty
@@ -75,15 +75,36 @@ showDfsSubgraph DepGraph{graph,currentPackage} settings nodeIds = do
 
 
 drawInCanvas :: Settings -> PackageName -> Graph -> IO ()
-drawInCanvas settings currentPackage graph = do
-  let graph1 = excludeExternalPackages settings currentPackage graph
-      dotGraph = graph1
-        & GraphViz.graphToDot (gvParams settings)
-        & GraphViz.setStrictness (not $ _allowMultiEdges settings)
-        & removeTransitiveEdges settings
+drawInCanvas settings currentPackage graph0 = do
+  let graph1 = excludeExternalPackages settings currentPackage graph0
+      graph2 = GraphViz.graphToDot (gvParams settings) graph1
+      graph3 = GraphViz.setStrictness (not $ _allowMultiEdges settings) graph2
+      graph4 = removeTransitiveEdges settings graph3
+
       command = _graphvizCommand settings
-  printf ("Showing graph with "%d%" nodes, "%d%" edges\n") (G.noNodes graph1) (G.size graph1)
-  void . forkIO $ GvCmd.runGraphvizCanvas command dotGraph GvCmd.Xlib
+
+      externalNodesExcluded = G.noNodes graph0 - G.noNodes graph1
+
+      edgeCount2 = length $ GvTypes.graphEdges graph2
+      -- `setStrictness` doesn't remove duplicate edges in the DotRepr (just sets an attribute) so we have to nub them out manually
+      edgeCount3 = length . (if not (_allowMultiEdges settings) then List.nub else id) $ GvTypes.graphEdges graph3
+      edgeCount4 = length . (if not (_allowMultiEdges settings) then List.nub else id) $ GvTypes.graphEdges graph4
+
+      multiEdgesRemoved = edgeCount2 - edgeCount3
+      transitiveEdgesRemoved = edgeCount3 - edgeCount4
+
+  -- Log how much stuff was removed in each step
+  when (externalNodesExcluded > 0) $
+      printf (d%" nodes from external packages excluded. `:set include.external.packages True` to include them.\n") externalNodesExcluded
+  when (multiEdgesRemoved > 0) $
+      printf (d%" multi edges excluded. `:set allow.multi.edges True` to include them\n") multiEdgesRemoved
+  when (transitiveEdgesRemoved > 0) $
+      printf (d%" transitive edges excluded. `:set transitive.reduction False` to include them\n") transitiveEdgesRemoved
+
+  printf ("Showing graph with "%d%" nodes, "%d%" edges\n")
+         (length $ GvTypes.graphNodes graph4)
+         edgeCount4
+  void . forkIO $ GvCmd.runGraphvizCanvas command graph4 GvCmd.Xlib
 
 
 excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
