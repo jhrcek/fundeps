@@ -1,6 +1,8 @@
 cabal-version: >=1.10
 name: fundeps
 version: 0.1.0.0
+synopsis: An experimental CLI tool for visualization of elm declaration dependencies.
+description: An experimental CLI tool which parses source files in an elm projects and offers REPL-like ui for displaying declaration dependency graphs using graphviz library.
 license: BSD3
 license-file: LICENSE
 copyright: 2019 Jan Hrček
@@ -10,8 +12,11 @@ homepage: https://github.com/jhrcek/fundeps#readme
 category: Web
 build-type: Simple
 tested-with: GHC == 8.6.5
-extra-source-files:
-    README.md
+extra-source-files: README.md
+
+source-repository head
+  type:     git
+  location: git@github.com/jhrcek/fundeps.git
 
 library
     exposed-modules:

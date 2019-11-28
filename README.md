@@ -1,6 +1,6 @@
 # fundeps
 
-Experimental visualization of elm declaration dependencies.
+An experimental CLI tool for visualization of elm declaration dependencies.
 
 # TODOs
 * Deal with cases when \*.usages files are not found
