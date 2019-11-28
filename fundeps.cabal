@@ -9,6 +9,7 @@ author: Jan Hrček
 homepage: https://github.com/jhrcek/fundeps#readme
 category: Web
 build-type: Simple
+tested-with: GHC == 8.6.5
 extra-source-files:
     README.md
 
