@@ -44,6 +44,7 @@ import qualified Terminal.Commands                 as Cmd
 
 main :: IO ()
 main = do
+  GvCmd.quitWithoutGraphviz "It seems that graphviz is not installed. Please install it and try again."
   edges <- loadEdgesOrDie
   let depGraph = buildDepGraph edges
   reportSize depGraph
