@@ -69,7 +69,6 @@ showDfsSubgraph DepGraph{graph,currentPackage} settings nodeIds = do
     unless (null excludedDecls) $ do
         cliWarn "These functions were excluded from the graph, because they come from external packages:"
         traverse_ (cliWarn . (" • " <>)) excludedDecls
-        cliWarn "Run `:set include.external.packages True` to include them"
 
   when (G.noNodes subGraph /= 0) $
       drawInCanvas settings currentPackage subGraph
@@ -96,7 +95,10 @@ drawInCanvas settings currentPackage graph0 = do
 
   -- Log how much stuff was removed in each step
   when (externalNodesExcluded > 0) $
-      printf (d%" nodes from external packages excluded. `:set include.external.packages True` to include them.\n") externalNodesExcluded
+      if externalNodesExcluded == 1 then 
+        printf "1 node from external package excluded. `:set include.external.packages True` to include it.\n"
+      else
+        printf (d%" nodes from external packages excluded. `:set include.external.packages True` to include them.\n") externalNodesExcluded
   when (multiEdgesRemoved > 0) $
       printf (d%" multi edges excluded. `:set allow.multi.edges True` to include them\n") multiEdgesRemoved
   when (transitiveEdgesRemoved > 0) $
