@@ -1,0 +1,42 @@
+#!/usr/bin/env stack
+-- stack script --resolver lts-14.25 --package turtle --package process
+
+{-# LANGUAGE OverloadedStrings #-}
+
+import System.Process
+import Turtle
+
+main :: IO ()
+main = do
+  filesToCompile <- parseArgs
+  elmJsonExists <- testfile "elm.json"
+  unless elmJsonExists $
+    die "This doesn't look like elm project, because elm.json not found in current directory"
+  elmStuffExists <- testdir "elm-stuff"
+  when elmStuffExists $ do
+    printf
+      ("elm-stuff exists in " % fp % ".\nI need to delete it because I must recompile all the files to work.\nOk to delete elm-stuff? [N/y] ")
+      =<< pwd
+    ack <- getLine
+    if ack == "y" || ack == "Y"
+      then rmtree "elm-stuff"
+      else do
+        echo "Quitting, because I can't work without removing elm-stuff"
+        exit (ExitFailure 1)
+  procs "hacked-elm" ("make" : "--output=/dev/null" : filesToCompile) empty
+  output "tmp" $ do
+    usagesFile <- getUsages
+    input usagesFile
+  sh $ rm =<< getUsages
+  mv "tmp" "all.usages"
+  sh $ liftIO $ callProcess "fundeps-exe" []
+  rm "all.usages"
+
+getUsages :: Shell Turtle.FilePath
+getUsages = mfilter (\f -> extension f == Just "usages") (ls ".")
+
+parseArgs :: IO [Text]
+parseArgs =
+  options "Script to run fundeps"
+    $ some
+    $ argText "FILE(s)" "One or more elm files to compile"

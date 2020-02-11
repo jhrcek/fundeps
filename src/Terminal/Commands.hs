@@ -118,7 +118,7 @@ adjustSettings a settings =
     AllowMultiEdges flag         -> settings { _allowMultiEdges = flag }
     RunTransitiveReduction flag  -> settings { _transitiveReduction = flag }
     IncludeExternalPackages flag -> settings { _includeExternalPackages = flag }
-    SetSearchMode mode       -> settings { _dependencyMode = mode }
+    SetSearchMode mode           -> settings { _dependencyMode = mode }
     SetGraphVizCommand command   -> settings { _graphvizCommand = command }
     SetRankDir rankDir           -> settings { _rankDir = rankDir }
 
