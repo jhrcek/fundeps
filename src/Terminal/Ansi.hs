@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Terminal.Ansi
-  ( red
-  , green
-  , bold
-  ) where
 
-import           Data.Text (Text)
+module Terminal.Ansi
+  ( red,
+    green,
+    bold,
+  )
+where
+
+import Data.Text (Text)
 
 green :: Text -> Text
 green t = greenCode <> t <> resetCode
