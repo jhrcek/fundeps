@@ -3,6 +3,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
+import Control.Exception
 import System.Process
 import Turtle
 
@@ -11,19 +12,15 @@ main = do
   filesToCompile <- parseArgs
   elmJsonExists <- testfile "elm.json"
   unless elmJsonExists $
-    die "This doesn't look like elm project, because elm.json not found in current directory"
-  elmStuffExists <- testdir "elm-stuff"
-  when elmStuffExists $ do
-    printf
-      ("elm-stuff exists in " % fp % ".\nI need to delete it because I must recompile all the files to work.\nOk to delete elm-stuff? [N/y] ")
-      =<< pwd
-    ack <- getLine
-    if ack == "y" || ack == "Y"
-      then rmtree "elm-stuff"
-      else do
-        echo "Quitting, because I can't work without removing elm-stuff"
-        exit (ExitFailure 1)
-  procs "hacked-elm" ("make" : "--output=/dev/null" : filesToCompile) empty
+    die "elm.json not found in current directory. This doesn't look like elm project."
+  elmStuffExists <- testdir stuff
+  when elmStuffExists
+    $ with (mktempdir "/tmp" "fundeps")
+    $ \tmpDir -> do
+      bracket_
+        (cptree stuff (tmpDir </> stuff) >> rmtree stuff)
+        (rmtree stuff >> cptree (tmpDir </> stuff) stuff)
+        (procs "hacked-elm" ("make" : "--output=/dev/null" : filesToCompile) empty)
   output "tmp" $ do
     usagesFile <- getUsages
     input usagesFile
@@ -40,3 +37,6 @@ parseArgs =
   options "Script to run fundeps"
     $ some
     $ argText "FILE(s)" "One or more elm files to compile"
+
+stuff :: Turtle.FilePath
+stuff = "elm-stuff/"
