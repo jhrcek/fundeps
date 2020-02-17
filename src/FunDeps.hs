@@ -38,11 +38,12 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified Data.Text.Lazy as LText
 import Settings
-  ( NodeFormat (..),
-    SearchMode (..),
+  ( DependencyMode (..),
+    NodeFormat (..),
     Settings (..),
     defaultSettings,
   )
+import qualified Settings.Editor
 import qualified System.Console.Haskeline as Repl
 import Terminal (Item (..), pickAnItem)
 import qualified Terminal.Ansi as Ansi
@@ -76,7 +77,7 @@ showDfsSubgraph DepGraph {graph, currentPackage} settings nodeIds = do
             nodeIds
     unless (null excludedDecls) $ do
       cliWarn "These functions were excluded from the graph, because they come from external packages:"
-      traverse_ (cliWarn . (" • " <>)) excludedDecls
+      traverse_ (cliWarn . (" - " <>)) excludedDecls
   when (G.noNodes subGraph /= 0) $
     drawInCanvas settings currentPackage subGraph
 
@@ -97,12 +98,12 @@ drawInCanvas settings currentPackage graph0 = do
   -- Log how much stuff was removed in each step
   when (externalNodesExcluded > 0) $
     if externalNodesExcluded == 1
-      then printf "1 node from external package excluded. `:set include.external.packages True` to include it.\n"
-      else printf (d % " nodes from external packages excluded. `:set include.external.packages True` to include them.\n") externalNodesExcluded
+      then printf "1 node from external package excluded. Toggle 'Include external packages' in settings include it\n"
+      else printf (d % " nodes from external packages excluded. Toggle 'Include external packages' in settings to include them\n") externalNodesExcluded
   when (multiEdgesRemoved > 0) $
-    printf (d % " multi edges excluded. `:set allow.multi.edges True` to include them\n") multiEdgesRemoved
+    printf (d % " multi edges excluded. Toggle 'Allow multi edges' in settings to include them\n") multiEdgesRemoved
   when (transitiveEdgesRemoved > 0) $
-    printf (d % " transitive edges excluded. `:set transitive.reduction False` to include them\n") transitiveEdgesRemoved
+    printf (d % " transitive edges excluded. Disable 'Transitive reduction' in settings to include them\n") transitiveEdgesRemoved
   printf
     ("Showing graph with " % d % " nodes, " % d % " edges\n")
     (length $ GvTypes.graphNodes graph4)
@@ -243,13 +244,10 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
           case Cmd.parseCommand (Text.pack line) of
             Left badCommandError -> liftIO (cliWarn badCommandError) >> loop settings
             Right command -> case command of
-              Cmd.AdjustSettings change ->
-                let newSettings = Cmd.adjustSettings change settings
-                 in loop newSettings
               Cmd.Query query -> liftIO (processQuery query) >> loop settings
-              Cmd.ShowSettings -> liftIO (Cmd.showSettings settings) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
               Cmd.ShowGraph -> liftIO (drawInCanvas settings currentPackage graph) >> loop settings
+              Cmd.EditSettings -> liftIO (Settings.Editor.editSettings settings) >>= loop
               Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
           where
             processQuery :: Text -> IO ()
@@ -315,7 +313,7 @@ lookupFunctionId (DepGraph decls funs _ _) searchText =
 buildCompletionFunction :: DepGraph -> Repl.CompletionFunc IO
 buildCompletionFunction DepGraph {declToNode, functionNameToNodes} = Repl.completeWord Nothing whitespace lookupCompletions
   where
-    whitespace = [] -- Empty list = everything is treated as one word to allow autocompletion of things including spaces, like ":set SETTING"
+    whitespace = [' ']
     fullyQualifiedSuggestions = Text.unpack . formatNode Full <$> Map.keys declToNode
     functionNameSuggestions = Text.unpack . unFunctionName <$> Map.keys functionNameToNodes
     lookupCompletions prefix =

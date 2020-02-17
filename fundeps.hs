@@ -18,6 +18,7 @@ main = do
     $ with (mktempdir "/tmp" "fundeps")
     $ \tmpDir -> do
       bracket_
+        -- TODO figure out how to do it via `mv`, which should be much faster
         (cptree stuff (tmpDir </> stuff) >> rmtree stuff)
         (rmtree stuff >> cptree (tmpDir </> stuff) stuff)
         (procs "hacked-elm" ("make" : "--output=/dev/null" : filesToCompile) empty)

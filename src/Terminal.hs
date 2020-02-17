@@ -17,6 +17,7 @@ import Brick.Widgets.Core (hLimit, str, vLimit, withAttr)
 import qualified Brick.Widgets.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Vector as Vec
+import Data.Void (Void)
 import qualified Graphics.Vty as V
 import Lens.Micro ((^.))
 
@@ -35,7 +36,7 @@ appDraw l = [C.center box]
         $ vLimit 20
         $ L.renderList listDrawElement True l
 
-appHandleEvent :: Item a => Model a -> T.BrickEvent () e -> T.EventM () (T.Next (Model a))
+appHandleEvent :: Item a => Model a -> T.BrickEvent () Void -> T.EventM () (T.Next (Model a))
 appHandleEvent l (T.VtyEvent e) =
   case e of
     V.EvKey V.KEnter [] ->
@@ -62,7 +63,7 @@ appAttrMap =
       (L.listSelectedAttr, V.blue `on` V.white)
     ]
 
-pickItemApp :: Item a => Brick.App (Model a) e ()
+pickItemApp :: Item a => Brick.App (Model a) Void ()
 pickItemApp =
   Brick.App
     { Brick.appDraw = appDraw,

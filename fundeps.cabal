@@ -21,6 +21,7 @@ source-repository head
 library
     exposed-modules:
         FunDeps
+        Settings.Editor
     hs-source-dirs: src
     other-modules:
         Settings
@@ -38,6 +39,7 @@ library
         graphviz,
         haskeline,
         microlens,
+        microlens-th,
         text,
         transformers,
         turtle,
