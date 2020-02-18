@@ -1,5 +1,5 @@
 #!/usr/bin/env stack
--- stack script --resolver lts-14.25 --package turtle --package process
+-- stack script --resolver lts-14.27 --package turtle --package process
 
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -13,15 +13,8 @@ main = do
   elmJsonExists <- testfile "elm.json"
   unless elmJsonExists $
     die "elm.json not found in current directory. This doesn't look like elm project."
-  elmStuffExists <- testdir stuff
-  when elmStuffExists
-    $ with (mktempdir "/tmp" "fundeps")
-    $ \tmpDir -> do
-      bracket_
-        -- TODO figure out how to do it via `mv`, which should be much faster
-        (cptree stuff (tmpDir </> stuff) >> rmtree stuff)
-        (rmtree stuff >> cptree (tmpDir </> stuff) stuff)
-        (procs "hacked-elm" ("make" : "--output=/dev/null" : filesToCompile) empty)
+  withElmStuffBackup $
+    procs "hacked-elm" ("make" : "--output=/dev/null" : filesToCompile) empty
   output "tmp" $ do
     usagesFile <- getUsages
     input usagesFile
@@ -29,6 +22,20 @@ main = do
   mv "tmp" "all.usages"
   sh $ liftIO $ callProcess "fundeps-exe" []
   rm "all.usages"
+
+withElmStuffBackup :: IO () -> IO ()
+withElmStuffBackup action = do
+  elmStuffExists <- testdir stuff
+  if elmStuffExists
+    then withBackup action
+    else action
+  where
+    withBackup act = with (mktempdir "/tmp" "fundeps") $ \tmpDir ->
+      bracket_
+        -- TODO figure out how to do it via `mv`, which should be much faster
+        (cptree stuff (tmpDir </> stuff) >> rmtree stuff)
+        (rmtree stuff >> cptree (tmpDir </> stuff) stuff)
+        act
 
 getUsages :: Shell Turtle.FilePath
 getUsages = mfilter (\f -> extension f == Just "usages") (ls ".")
