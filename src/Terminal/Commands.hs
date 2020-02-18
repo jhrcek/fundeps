@@ -16,14 +16,11 @@ import qualified Data.Text.IO as Text
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands"
 
+-- TODO switch to normal parser instead of this ad-hoc text munging
 parseCommand :: Text -> Either Text Command
 parseCommand text = case Text.words text of
-  (":help" : _) -> Right ShowHelp
-  (":graph" : _) -> Right ShowGraph
-  (":quit" : _) -> Right Quit
-  (":set" : _) -> Right EditSettings
   (word : _)
-    | Text.isPrefixOf ":" text -> Left $ word <> " is not a valid command. " <> typeHelp
+    | Text.isPrefixOf ":" text -> lookupCommandByPrefix word
     | otherwise -> Right $ Query text
   [] -> Left typeHelp
 
@@ -37,14 +34,22 @@ data Command
 showHelp :: IO ()
 showHelp =
   Text.putStrLn $
-    Text.unlines
-      [ "COMMANDS",
-        "  <query>    Search function by name",
-        "  :help      Show this help",
-        "  :quit      Quit the program",
-        "  :graph     Show the entire function dependency graph",
-        "  :set       Adjust visualization settings"
-      ]
+    "COMMANDS\n\
+    \  <query>    Search function by name\n\
+    \  :help      Show this help\n\
+    \  :quit      Quit the program\n\
+    \  :graph     Show the entire function dependency graph\n\
+    \  :set       Adjust visualization settings"
+
+lookupCommandByPrefix :: Text -> Either Text Command
+lookupCommandByPrefix word = case filter (Text.isPrefixOf word) commands of
+  [":graph"] -> Right ShowGraph
+  [":help"] -> Right ShowHelp
+  [":quit"] -> Right Quit
+  [":set"] -> Right EditSettings
+  _ -> Left $ word <> " is not a valid command. " <> typeHelp
+  where
+    commands = fmap Text.pack commandSuggestions
 
 commandSuggestions :: [String]
 commandSuggestions =

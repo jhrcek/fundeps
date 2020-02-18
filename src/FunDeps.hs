@@ -248,7 +248,7 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
               Cmd.ShowGraph -> liftIO (drawInCanvas settings currentPackage graph) >> loop settings
               Cmd.EditSettings -> liftIO (Settings.Editor.editSettings settings) >>= loop
-              Cmd.Quit -> liftIO (cliInfo "Bye!") >> pure ()
+              Cmd.Quit -> liftIO $ cliInfo "Bye!"
           where
             processQuery :: Text -> IO ()
             processQuery query = do
