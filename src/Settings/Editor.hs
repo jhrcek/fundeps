@@ -37,6 +37,8 @@ import Lens.Micro (Lens')
 import Settings (Settings)
 import qualified Settings as S
 
+type FormState = Form Settings Void Name
+
 theMap :: AttrMap
 theMap =
   attrMap
@@ -70,7 +72,7 @@ data Name
   | SaveButton
   deriving (Eq, Ord, Show)
 
-mkForm :: Settings -> Form Settings Void Name
+mkForm :: Settings -> FormState
 mkForm =
   let label s w =
         padTop (Pad 1)
@@ -113,7 +115,7 @@ mkForm =
 unicodeCheckbox :: Lens' s Bool -> Name -> Text -> s -> FormFieldState s Void Name
 unicodeCheckbox = checkboxCustomField '[' '\10003' ']'
 
-draw :: Form Settings e Name -> [Widget Name]
+draw :: FormState -> [Widget Name]
 draw f = [center form]
   where
     form =
@@ -124,18 +126,22 @@ draw f = [center form]
         $ border
         $ str "Save"
 
-app :: App (Form Settings Void Name) Void Name
+app :: App FormState Void Name
 app =
   App
     { appDraw = draw,
-      appHandleEvent = \s event -> case event of
-        VtyEvent (V.EvResize {}) -> continue s
-        MouseDown SaveButton _ _ _ -> halt s
-        _ -> handleFormEvent event s >>= continue,
+      appHandleEvent = handleEvent,
       appChooseCursor = focusRingCursor formFocus,
       appStartEvent = return,
       appAttrMap = const theMap
     }
+
+handleEvent :: FormState -> BrickEvent Name Void -> EventM Name (Next FormState)
+handleEvent s event = case event of
+  MouseDown SaveButton _ _ _ -> halt s
+  VtyEvent (V.EvKey V.KEnter _) -> halt s
+  VtyEvent (V.EvResize {}) -> continue s
+  _ -> handleFormEvent event s >>= continue
 
 editSettings :: Settings -> IO Settings
 editSettings settings = do
