@@ -12,6 +12,7 @@ import Control.Concurrent (forkIO)
 import qualified Control.Foldl as Fold
 import Control.Monad.Trans.State.Strict (State)
 import qualified Control.Monad.Trans.State.Strict as State
+import Data.Containers.ListUtils (nubOrd)
 import Data.Foldable (for_, traverse_)
 import qualified Data.Graph.Inductive.Basic as GB
 import qualified Data.Graph.Inductive.Graph as G
@@ -91,8 +92,8 @@ drawInCanvas settings currentPackage graph0 = do
       externalNodesExcluded = G.noNodes graph0 - G.noNodes graph1
       edgeCount2 = length $ GvTypes.graphEdges graph2
       -- `setStrictness` doesn't remove duplicate edges in the DotRepr (just sets an attribute) so we have to nub them out manually
-      edgeCount3 = length . (if not (_allowMultiEdges settings) then List.nub else id) $ GvTypes.graphEdges graph3
-      edgeCount4 = length . (if not (_allowMultiEdges settings) then List.nub else id) $ GvTypes.graphEdges graph4
+      edgeCount3 = length . (if not (_allowMultiEdges settings) then nubOrd else id) $ GvTypes.graphEdges graph3
+      edgeCount4 = length . (if not (_allowMultiEdges settings) then nubOrd else id) $ GvTypes.graphEdges graph4
       multiEdgesRemoved = edgeCount2 - edgeCount3
       transitiveEdgesRemoved = edgeCount3 - edgeCount4
   -- Log how much stuff was removed in each step
