@@ -27,6 +27,7 @@ import Brick.Util (on)
 import Brick.Widgets.Border (border, borderWithLabel)
 import Brick.Widgets.Center (center)
 import Brick.Widgets.Edit (editAttr, editFocusedAttr)
+import Data.GraphViz.Attributes.Complete (RankDir (..))
 import Data.GraphViz.Commands (GraphvizCommand (Circo, Dot, Neato, TwoPi))
 import Data.Text (Text)
 import Data.Void (Void)
@@ -62,6 +63,10 @@ data Name
   | GvCommandCircoRadio
   | NodeFormatFullRadio
   | NodeFormatWithoutPackageRadio
+  | RankdirFromLeftRadio
+  | RankdirFromRightRadio
+  | RankdirFromTopRadio
+  | RankdirFromBottomRadio
   | SaveButton
   deriving (Eq, Ord, Show)
 
@@ -94,6 +99,14 @@ mkForm =
               S.nodeFormat
               [ (S.Full, NodeFormatFullRadio, "Package:Module:Function"),
                 (S.WithoutPackage, NodeFormatWithoutPackageRadio, "Module:Function")
+              ],
+          label "Direction of edges"
+            @@= radioField
+              S.rankDir
+              [ (FromLeft, RankdirFromLeftRadio, "Left to right"),
+                (FromRight, RankdirFromRightRadio, "Right to left"),
+                (FromTop, RankdirFromTopRadio, "Top to bottom"),
+                (FromBottom, RankdirFromBottomRadio, "Bottom to top")
               ]
         ]
 
