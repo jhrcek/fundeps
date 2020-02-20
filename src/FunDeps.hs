@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -49,6 +50,7 @@ import qualified System.Console.Haskeline as Repl
 import Terminal (Item (..), pickAnItem)
 import qualified Terminal.Ansi as Ansi
 import qualified Terminal.Commands as Cmd
+import Terminal.Commands (QueryItem (..))
 import Turtle hiding (f, g, prefix, sortOn)
 
 main :: IO ()
@@ -59,8 +61,8 @@ main = do
   reportSize depGraph
   terminalUI depGraph defaultSettings
 
-showDfsSubgraph :: DepGraph -> Settings -> [G.Node] -> IO ()
-showDfsSubgraph DepGraph {graph, currentPackage} settings nodeIds = do
+showDfsSubgraph :: GraphAction -> DepGraph -> Settings -> [G.Node] -> IO ()
+showDfsSubgraph graphAction DepGraph {graph, currentPackage} settings nodeIds = do
   let reachableNodeIds = DFS.dfs nodeIds $
         case _dependencyMode settings of
           Callees -> graph
@@ -80,10 +82,10 @@ showDfsSubgraph DepGraph {graph, currentPackage} settings nodeIds = do
       cliWarn "These functions were excluded from the graph, because they come from external packages:"
       traverse_ (cliWarn . (" - " <>)) excludedDecls
   when (G.noNodes subGraph /= 0) $
-    drawInCanvas settings currentPackage subGraph
+    runGraphAction graphAction settings currentPackage subGraph
 
-drawInCanvas :: Settings -> PackageName -> Graph -> IO ()
-drawInCanvas settings currentPackage graph0 = do
+runGraphAction :: GraphAction -> Settings -> PackageName -> Graph -> IO ()
+runGraphAction graphAction settings currentPackage graph0 = do
   let graph1 = excludeExternalPackages settings currentPackage graph0
       graph2 = GraphViz.graphToDot (gvParams settings) graph1
       graph3 = GraphViz.setStrictness (not $ _allowMultiEdges settings) graph2
@@ -105,11 +107,48 @@ drawInCanvas settings currentPackage graph0 = do
     printf (d % " multi edges excluded. Toggle 'Allow multi edges' in settings to include them\n") multiEdgesRemoved
   when (transitiveEdgesRemoved > 0) $
     printf (d % " transitive edges excluded. Disable 'Transitive reduction' in settings to include them\n") transitiveEdgesRemoved
+  -- TODO this should show to which file it's exporting
   printf
-    ("Showing graph with " % d % " nodes, " % d % " edges\n")
+    ( ( case graphAction of
+          DrawInCanvas -> "Showing"
+          ExportToFile {} -> "Exporting"
+      )
+        % " graph with "
+        % d
+        % " nodes, "
+        % d
+        % " edges\n"
+    )
     (length $ GvTypes.graphNodes graph4)
     edgeCount4
-  void . forkIO $ GvCmd.runGraphvizCanvas command graph4 GvCmd.Xlib
+  executeGraphAction command graph4 graphAction
+
+data GraphAction
+  = DrawInCanvas
+  | -- TODO allow user to specify output file
+    ExportToFile Cmd.ExportFormat
+
+executeGraphAction :: GvCmd.GraphvizCommand -> GraphViz.DotGraph G.Node -> GraphAction -> IO ()
+executeGraphAction gvCommand graph = \case
+  DrawInCanvas -> void . forkIO $ GvCmd.runGraphvizCanvas gvCommand graph GvCmd.Xlib
+  (ExportToFile fmt) -> do
+    exportFile <- freshExportFile 0 fmt
+    void $
+      GvCmd.runGraphvizCommand
+        gvCommand
+        graph
+        (case fmt of Cmd.DotSource -> GvCmd.Canon; Cmd.Svg -> GvCmd.Svg)
+        (Text.unpack $ format fp exportFile)
+
+freshExportFile :: Int -> Cmd.ExportFormat -> IO Turtle.FilePath
+freshExportFile n fmt = do
+  let file =
+        fromText ("export" <> if n == 0 then "" else repr n)
+          <.> (case fmt of Cmd.DotSource -> "dot"; Cmd.Svg -> "svg")
+  exists <- testfile file
+  if exists
+    then freshExportFile (n + 1) fmt
+    else pure file
 
 excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
 excludeExternalPackages settings currentPackage
@@ -243,17 +282,18 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
         Nothing -> loop settings
         Just line ->
           case Cmd.parseCommand (Text.pack line) of
-            Left badCommandError -> liftIO (cliWarn badCommandError) >> loop settings
+            Left _ -> liftIO (cliWarn $ "Failed to parse command. " <> Cmd.typeHelp) >> loop settings
             Right command -> case command of
-              Cmd.Query query -> liftIO (processQuery query) >> loop settings
+              Cmd.Query queryItems -> liftIO (processQuery DrawInCanvas queryItems) >> loop settings
+              Cmd.Export fmt query -> liftIO (processQuery (ExportToFile fmt) query) >> loop settings
               Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
-              Cmd.ShowGraph -> liftIO (drawInCanvas settings currentPackage graph) >> loop settings
+              Cmd.ShowGraph -> liftIO (runGraphAction DrawInCanvas settings currentPackage graph) >> loop settings
               Cmd.EditSettings -> liftIO (Settings.Editor.editSettings settings) >>= loop
               Cmd.Quit -> liftIO $ cliInfo "Bye!"
           where
-            processQuery :: Text -> IO ()
-            processQuery query = do
-              let lookupResults = parseQuery depGraph query
+            processQuery :: GraphAction -> [QueryItem] -> IO ()
+            processQuery graphAction queryItems = do
+              let lookupResults = lookupItems depGraph queryItems
                   disambiguate :: NonEmpty Decl -> IO G.Node
                   disambiguate = fmap (declToNode Map.!) . pickAnItem
               unless (null lookupResults) $ case partitionLookupResults lookupResults of
@@ -270,7 +310,7 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
                         ]
                 Right (foundIds1, ambiguous) -> do
                   foundIds2 <- traverse disambiguate ambiguous
-                  showDfsSubgraph depGraph settings $ foundIds1 <> foundIds2
+                  showDfsSubgraph graphAction depGraph settings $ foundIds1 <> foundIds2
 
 partitionLookupResults :: [LookupResult] -> Either ([Text], [Text]) ([G.Node], [NonEmpty Decl])
 partitionLookupResults = foldr step (Right ([], []))
@@ -286,18 +326,16 @@ partitionLookupResults = foldr step (Right ([], []))
       FoundUnique nid -> Right (nid : founds, ambiguous)
       Ambiguous a -> Right (founds, a : ambiguous)
 
-parseQuery :: DepGraph -> Text -> [LookupResult]
-parseQuery depGraph searchText =
-  fmap (lookupFunctionId depGraph) searchTerms
-  where
-    searchTerms = filter (not . Text.null) . fmap Text.strip $ Text.splitOn "," searchText
+lookupItems :: DepGraph -> [QueryItem] -> [LookupResult]
+lookupItems depGraph =
+  fmap (lookupFunctionId depGraph)
 
-lookupFunctionId :: DepGraph -> Text -> LookupResult
-lookupFunctionId (DepGraph decls funs _ _) searchText =
-  case Text.splitOn ":" searchText of
-    [p, m, f] -> lookupUnique (Decl (PackageName p) (ModuleName m) (FunctionName f))
-    [m, f] -> lookupUnique (Decl (PackageName "") (ModuleName m) (FunctionName f))
-    [fname] -> case Map.lookup (FunctionName fname) funs of
+lookupFunctionId :: DepGraph -> QueryItem -> LookupResult
+lookupFunctionId (DepGraph decls funs _ _) qi =
+  case qi of
+    PkgModFun p m f -> lookupUnique (Decl (PackageName p) (ModuleName m) (FunctionName f))
+    ModFun m f -> lookupUnique (Decl (PackageName "") (ModuleName m) (FunctionName f))
+    Fun fname -> case Map.lookup (FunctionName fname) funs of
       Nothing -> NotFound fname
       Just declSet -> case Set.toList declSet of
         [] -> error $ "WTF?! Invariant broken: set of declarations with function name '" <> Text.unpack fname <> "'' was empty"
@@ -305,7 +343,6 @@ lookupFunctionId (DepGraph decls funs _ _) searchText =
           Nothing -> error $ "WTF? Invariant broken: '" <> Text.unpack fname <> "' was in function name map, but not in decl map"
           Just nodeId -> FoundUnique nodeId
         m : ore -> Ambiguous (m :| ore)
-    _ -> InvalidQuery searchText
   where
     lookupUnique decl = case Map.lookup decl decls of
       Nothing -> NotFound $ formatNode Full decl
