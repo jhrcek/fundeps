@@ -1,1 +1,5 @@
-{-# OPTIONS_GHC -F -pgmF hspec-discover #-}
+import qualified Terminal.CommandsSpec
+import Test.Hspec
+
+main :: IO ()
+main = hspec Terminal.CommandsSpec.spec
