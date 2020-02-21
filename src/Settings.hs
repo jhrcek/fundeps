@@ -20,8 +20,8 @@ import Data.GraphViz.Commands (GraphvizCommand (Dot))
 import Lens.Micro.TH (makeLenses)
 
 data NodeFormat
-  = Full
-  | WithoutPackage
+  = PackageModuleFunction
+  | ModuleFunction
   deriving (Eq, Show)
 
 data DependencyMode
@@ -50,7 +50,7 @@ defaultSettings =
       _dependencyMode = Callers,
       _graphvizCommand = Dot,
       _includeExternalPackages = False,
-      _nodeFormat = WithoutPackage,
+      _nodeFormat = ModuleFunction,
       _rankDir = FromLeft,
       _transitiveReduction = False
     }

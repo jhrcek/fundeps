@@ -4,6 +4,7 @@ module Terminal.Commands
   ( Command (..),
     ExportFormat (..),
     QueryItem (..),
+    CommandParseError (..),
     parseCommand,
     showHelp,
     typeHelp,
@@ -18,7 +19,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified Text.Parsec as Parsec
-import Text.Parsec ((<|>), ParseError)
+import Text.Parsec ((<|>))
 import qualified Text.Parsec.Char as P
 import qualified Text.Parsec.Combinator as P
 import Text.Parsec.Text (Parser)
@@ -26,11 +27,12 @@ import Text.Parsec.Text (Parser)
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands"
 
-newtype CommandParseError = CommandParseError ParseError deriving (Show, Eq)
+newtype CommandParseError = CommandParseError Text deriving (Show, Eq)
 
 parseCommand :: Text -> Either CommandParseError Command
-parseCommand =
-  first CommandParseError . Parsec.parse commandParser "<user input>"
+parseCommand input =
+  first (CommandParseError . Text.pack . show) $
+    Parsec.parse commandParser (Text.unpack input) input
 
 data Command
   = Query [QueryItem]
@@ -54,19 +56,20 @@ data ExportFormat
 
 commandParser :: Parser Command
 commandParser =
-  ( P.char ':'
-      *> P.choice
-        [ symbol "help" $> ShowHelp,
-          symbol "q" $> Quit,
-          symbol "quit" $> Quit,
-          symbol "set" $> EditSettings,
-          symbol "settings" $> EditSettings,
-          symbol "graph" $> ShowGraph,
-          Export <$> (symbol "export" *> exportFormat)
-            <*> queryItems
-        ]
+  ( ( P.char ':'
+        *> P.choice
+          [ symbol "help" $> ShowHelp,
+            (symbol "q" *> (symbol "uit" <|> pure ())) $> Quit,
+            (symbol "set" *> (symbol "tings" <|> pure ())) $> EditSettings,
+            symbol "graph" $> ShowGraph,
+            Export <$> (symbol "export" *> exportFormat)
+              <*> queryItems
+          ]
+    )
+      <|> (Query <$> queryItems)
   )
-    <|> (Query <$> queryItems)
+    <* P.spaces
+    <* P.eof
 
 exportFormat :: Parser ExportFormat
 exportFormat =
@@ -85,9 +88,9 @@ queryItem =
     <|> (Fun <$> funct)
   where
     sat = fmap Text.pack . P.many1 . P.satisfy
-    pkg = sat $ \c -> isAlphaNum c || c == '/'
-    modul = sat $ \c -> isAlphaNum c || c == '.'
-    funct = sat isAlphaNum
+    pkg = sat $ \c -> isAlphaNum c || c == '/' || c == '-'
+    modul = sat $ \c -> isAlphaNum c || c == '.' || c == '-'
+    funct = sat $ \c -> isAlphaNum c || c == '_'
 
 symbol :: String -> Parser ()
 symbol s = lexeme (P.string s) $> ()

@@ -63,8 +63,8 @@ data Name
   | GvCommandNeatoRadio
   | GvCommandTwopiRadio
   | GvCommandCircoRadio
-  | NodeFormatFullRadio
-  | NodeFormatWithoutPackageRadio
+  | NodeFormatPackageModuleFunctionRadio
+  | NodeFormatModuleFunctionRadio
   | RankdirFromLeftRadio
   | RankdirFromRightRadio
   | RankdirFromTopRadio
@@ -99,8 +99,8 @@ mkForm =
           label "Node format"
             @@= radioField
               S.nodeFormat
-              [ (S.Full, NodeFormatFullRadio, "Package:Module:Function"),
-                (S.WithoutPackage, NodeFormatWithoutPackageRadio, "Module:Function")
+              [ (S.PackageModuleFunction, NodeFormatPackageModuleFunctionRadio, "Package:Module:Function"),
+                (S.ModuleFunction, NodeFormatModuleFunctionRadio, "Module:Function")
               ],
           label "Direction of edges"
             @@= radioField

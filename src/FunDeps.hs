@@ -75,7 +75,7 @@ showDfsSubgraph graphAction DepGraph {graph, currentPackage} settings nodeIds = 
             ( \nodeId -> do
                 decl <- G.lab graph nodeId
                 guard (_decl_package decl /= currentPackage)
-                pure $ formatNode Full decl
+                pure $ formatNode PackageModuleFunction decl
             )
             nodeIds
     unless (null excludedDecls) $ do
@@ -172,11 +172,11 @@ gvParams settings =
 
 formatNode :: NodeFormat -> Decl -> Text
 formatNode fmt (Decl p m f) = case fmt of
-  Full ->
+  PackageModuleFunction ->
     Text.intercalate ":" $
       (if Text.null (unPackageName p) then id else (unPackageName p :))
         [unModuleName m, unFunctionName f]
-  WithoutPackage -> Text.unlines [unModuleName m, unFunctionName f]
+  ModuleFunction -> Text.unlines [unModuleName m, unFunctionName f]
 
 data Decl
   = Decl
@@ -282,7 +282,7 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
         Nothing -> loop settings
         Just line ->
           case Cmd.parseCommand (Text.pack line) of
-            Left _ -> liftIO (cliWarn $ "Failed to parse command. " <> Cmd.typeHelp) >> loop settings
+            Left er -> liftIO (cliWarn . Text.pack $ show er) >> loop settings
             Right command -> case command of
               Cmd.Query queryItems -> liftIO (processQuery DrawInCanvas queryItems) >> loop settings
               Cmd.Export fmt query -> liftIO (processQuery (ExportToFile fmt) query) >> loop settings
@@ -345,19 +345,20 @@ lookupFunctionId (DepGraph decls funs _ _) qi =
         m : ore -> Ambiguous (m :| ore)
   where
     lookupUnique decl = case Map.lookup decl decls of
-      Nothing -> NotFound $ formatNode Full decl
+      Nothing -> NotFound $ formatNode PackageModuleFunction decl
       Just nodeId -> FoundUnique nodeId
 
 buildCompletionFunction :: DepGraph -> Repl.CompletionFunc IO
 buildCompletionFunction DepGraph {declToNode, functionNameToNodes} = Repl.completeWord Nothing whitespace lookupCompletions
   where
     whitespace = [' ']
-    fullyQualifiedSuggestions = Text.unpack . formatNode Full <$> Map.keys declToNode
+    fullyQualifiedSuggestions = Text.unpack . formatNode PackageModuleFunction <$> Map.keys declToNode
     functionNameSuggestions = Text.unpack . unFunctionName <$> Map.keys functionNameToNodes
     lookupCompletions prefix =
       pure
         . fmap Repl.simpleCompletion
         . filter (List.isPrefixOf prefix)
+        . nubOrd
         $ Cmd.commandSuggestions <> fullyQualifiedSuggestions <> functionNameSuggestions
 
 data LookupResult
@@ -367,4 +368,4 @@ data LookupResult
   | Ambiguous (NonEmpty Decl)
 
 instance Item Decl where
-  showItem decl = Text.unpack $ formatNode Full decl
+  showItem decl = Text.unpack $ formatNode PackageModuleFunction decl
