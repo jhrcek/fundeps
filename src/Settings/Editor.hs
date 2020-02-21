@@ -5,6 +5,26 @@
 module Settings.Editor where
 
 import Brick
+  ( (<=>),
+    App (..),
+    AttrName,
+    BrickEvent,
+    BrickEvent (..),
+    EventM,
+    Next,
+    Padding (..),
+    Widget,
+    attrName,
+    clickable,
+    continue,
+    customMain,
+    hLimit,
+    halt,
+    padLeft,
+    padTop,
+    str,
+    withAttr,
+  )
 import Brick.AttrMap (AttrMap, attrMap)
 import Brick.Focus
   ( focusRingCursor,

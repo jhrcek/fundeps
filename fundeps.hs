@@ -1,5 +1,9 @@
 #!/usr/bin/env stack
--- stack script --resolver lts-14.27 --package turtle --package process
+{- stack script
+   --resolver lts-14.27
+   --package turtle
+   --package process
+-}
 
 {-# LANGUAGE OverloadedStrings #-}
 
