@@ -297,32 +297,21 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
                   disambiguate :: NonEmpty Decl -> IO G.Node
                   disambiguate = fmap (declToNode Map.!) . pickAnItem
               unless (null lookupResults) $ case partitionLookupResults lookupResults of
-                Left (notFounds, invalidQueries) -> do
+                Left notFounds -> do
                   for_ notFounds $ \item -> cliWarn $ "Didn't find function named '" <> item <> "'"
-                  for_ invalidQueries $ \q ->
-                    cliWarn $
-                      Text.unlines
-                        [ "The following was not valid query: " <> q <> ".",
-                          "Valid queries have one of these forms",
-                          "  - function",
-                          "  - module:function",
-                          "  - package:module:function"
-                        ]
                 Right (foundIds1, ambiguous) -> do
                   foundIds2 <- traverse disambiguate ambiguous
                   showDfsSubgraph graphAction depGraph settings $ foundIds1 <> foundIds2
 
-partitionLookupResults :: [LookupResult] -> Either ([Text], [Text]) ([G.Node], [NonEmpty Decl])
+partitionLookupResults :: [LookupResult] -> Either [Text] ([G.Node], [NonEmpty Decl])
 partitionLookupResults = foldr step (Right ([], []))
   where
-    step r acc@(Left (notFounds, invalidQueries)) = case r of
-      InvalidQuery q -> Left (notFounds, q : invalidQueries)
-      NotFound t -> Left (t : notFounds, invalidQueries)
+    step r acc@(Left notFounds) = case r of
+      NotFound t -> Left (t : notFounds)
       FoundUnique _ -> acc
       Ambiguous _ -> acc
     step r (Right (founds, ambiguous)) = case r of
-      InvalidQuery q -> Left ([], [q])
-      NotFound t -> Left ([t], [])
+      NotFound t -> Left [t]
       FoundUnique nid -> Right (nid : founds, ambiguous)
       Ambiguous a -> Right (founds, a : ambiguous)
 
@@ -363,7 +352,6 @@ buildCompletionFunction DepGraph {declToNode, functionNameToNodes} = Repl.comple
 
 data LookupResult
   = FoundUnique G.Node
-  | InvalidQuery Text
   | NotFound Text
   | Ambiguous (NonEmpty Decl)
 
