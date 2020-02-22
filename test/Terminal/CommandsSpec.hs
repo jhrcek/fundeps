@@ -2,10 +2,9 @@
 
 module Terminal.CommandsSpec where
 
-import Data.Function ((&))
-import Terminal.Commands (Command (..), ExportFormat (..), QueryItem (..), parseCommand)
+import qualified Data.GraphViz.Commands as Gv
+import Terminal.Commands (Command (..), CommandParseError (..), QueryItem (..), parseCommand)
 import Test.Hspec
-import Test.Hspec.Expectations.Contrib (isLeft)
 
 spec :: Spec
 spec =
@@ -23,12 +22,16 @@ spec =
       parseCommand ":set" `shouldBe` Right EditSettings
       parseCommand ":settings" `shouldBe` Right EditSettings
     it "should parse export" $ do
-      parseCommand ":export dot map" `shouldBe` Right (Export DotSource [Fun "map"])
-      parseCommand ":export svg map" `shouldBe` Right (Export Svg [Fun "map"])
+      parseCommand ":export file.dot map" `shouldBe` Right (Export "file.dot" Gv.Canon [Fun "map"])
+      parseCommand ":export file.svg map" `shouldBe` Right (Export "file.svg" Gv.Svg [Fun "map"])
     it "shouldn't parse invalid export format" $ do
-      parseCommand ":export png map" & isLeft
-    it "shouldn't parse incomplete export command" $
-      parseCommand ":export" & isLeft
+      parseCommand ":export file.png map"
+        `shouldBe` Left (CommandParseError "\":export file.png map\" (line 1, column 18):\nunexpected \"m\"\nexpecting space\nExpected format of export command is :export FILE.(dot|svg) QUERY")
+    it "shouldn't parse incomplete export command" $ do
+      parseCommand ":export"
+        `shouldBe` Left (CommandParseError "\":export\" (line 1, column 8):\nunexpected end of input\nexpecting white space")
+      parseCommand ":export map"
+        `shouldBe` Left (CommandParseError "\":export map\" (line 1, column 12):\nunexpected end of input\nexpecting white space\nExpected format of export command is :export FILE.(dot|svg) QUERY")
     describe "query parsing" $ do
       it "should parse function query" $
         parseCommand "map" `shouldBe` Right (Query [Fun "map"])

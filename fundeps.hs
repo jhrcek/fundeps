@@ -37,6 +37,7 @@ withElmStuffBackup action = do
     withBackup act = with (mktempdir "/tmp" "fundeps") $ \tmpDir ->
       bracket_
         -- TODO figure out how to do it via `mv`, which should be much faster
+        -- TODO or better yet hack elm so it completely ignores local project cache and always recompiles the files
         (cptree stuff (tmpDir </> stuff) >> rmtree stuff)
         (rmtree stuff >> cptree (tmpDir </> stuff) stuff)
         act

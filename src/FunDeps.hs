@@ -1,6 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -52,6 +51,8 @@ import qualified Terminal.Ansi as Ansi
 import qualified Terminal.Commands as Cmd
 import Terminal.Commands (QueryItem (..))
 import Turtle hiding (f, g, prefix, sortOn)
+import Turtle (FilePath)
+import Prelude hiding (FilePath)
 
 main :: IO ()
 main = do
@@ -107,48 +108,29 @@ runGraphAction graphAction settings currentPackage graph0 = do
     printf (d % " multi edges excluded. Toggle 'Allow multi edges' in settings to include them\n") multiEdgesRemoved
   when (transitiveEdgesRemoved > 0) $
     printf (d % " transitive edges excluded. Disable 'Transitive reduction' in settings to include them\n") transitiveEdgesRemoved
-  -- TODO this should show to which file it's exporting
-  printf
-    ( ( case graphAction of
-          DrawInCanvas -> "Showing"
-          ExportToFile {} -> "Exporting"
-      )
-        % " graph with "
-        % d
-        % " nodes, "
-        % d
-        % " edges\n"
-    )
-    (length $ GvTypes.graphNodes graph4)
-    edgeCount4
+  reportRendering graphAction (length $ GvTypes.graphNodes graph4) edgeCount4
   executeGraphAction command graph4 graphAction
+
+reportRendering :: GraphAction -> Int -> Int -> IO ()
+reportRendering graphAction nodeCount edgeCount =
+  case graphAction of
+    DrawInCanvas -> printf ("Showing graph with " % d % " nodes, " % d % " edges\n") nodeCount edgeCount
+    ExportToFile file _ -> printf ("Exporting graph with " % d % " nodes, " % d % " edges to " % fp % "\n") nodeCount edgeCount file
 
 data GraphAction
   = DrawInCanvas
-  | -- TODO allow user to specify output file
-    ExportToFile Cmd.ExportFormat
+  | ExportToFile FilePath GvCmd.GraphvizOutput
 
 executeGraphAction :: GvCmd.GraphvizCommand -> GraphViz.DotGraph G.Node -> GraphAction -> IO ()
-executeGraphAction gvCommand graph = \case
+executeGraphAction gvCommand graph action = case action of
   DrawInCanvas -> void . forkIO $ GvCmd.runGraphvizCanvas gvCommand graph GvCmd.Xlib
-  (ExportToFile fmt) -> do
-    exportFile <- freshExportFile 0 fmt
+  (ExportToFile file gvOutput) ->
     void $
       GvCmd.runGraphvizCommand
         gvCommand
         graph
-        (case fmt of Cmd.DotSource -> GvCmd.Canon; Cmd.Svg -> GvCmd.Svg)
-        (Text.unpack $ format fp exportFile)
-
-freshExportFile :: Int -> Cmd.ExportFormat -> IO Turtle.FilePath
-freshExportFile n fmt = do
-  let file =
-        fromText ("export" <> if n == 0 then "" else repr n)
-          <.> (case fmt of Cmd.DotSource -> "dot"; Cmd.Svg -> "svg")
-  exists <- testfile file
-  if exists
-    then freshExportFile (n + 1) fmt
-    else pure file
+        gvOutput
+        (Turtle.encodeString file)
 
 excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
 excludeExternalPackages settings currentPackage
@@ -282,14 +264,20 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
         Nothing -> loop settings
         Just line ->
           case Cmd.parseCommand (Text.pack line) of
-            Left er -> liftIO (cliWarn . Text.pack $ show er) >> loop settings
+            Left (Cmd.CommandParseError er) -> liftIO (cliWarn er) >> loop settings
             Right command -> case command of
-              Cmd.Query queryItems -> liftIO (processQuery DrawInCanvas queryItems) >> loop settings
-              Cmd.Export fmt query -> liftIO (processQuery (ExportToFile fmt) query) >> loop settings
-              Cmd.ShowHelp -> liftIO Cmd.showHelp >> loop settings
-              Cmd.ShowGraph -> liftIO (runGraphAction DrawInCanvas settings currentPackage graph) >> loop settings
-              Cmd.EditSettings -> liftIO (Settings.Editor.editSettings settings) >>= loop
-              Cmd.Quit -> liftIO $ cliInfo "Bye!"
+              Cmd.Query queryItems ->
+                liftIO (processQuery DrawInCanvas queryItems) >> loop settings
+              Cmd.Export file graphvizOutput queryItems ->
+                liftIO (processQuery (ExportToFile file graphvizOutput) queryItems) >> loop settings
+              Cmd.ShowHelp ->
+                liftIO Cmd.showHelp >> loop settings
+              Cmd.ShowGraph ->
+                liftIO (runGraphAction DrawInCanvas settings currentPackage graph) >> loop settings
+              Cmd.EditSettings ->
+                liftIO (Settings.Editor.editSettings settings) >>= loop
+              Cmd.Quit ->
+                liftIO $ cliInfo "Bye!"
           where
             processQuery :: GraphAction -> [QueryItem] -> IO ()
             processQuery graphAction queryItems = do

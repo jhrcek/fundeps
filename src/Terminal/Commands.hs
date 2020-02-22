@@ -1,8 +1,8 @@
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Terminal.Commands
   ( Command (..),
-    ExportFormat (..),
     QueryItem (..),
     CommandParseError (..),
     parseCommand,
@@ -13,16 +13,20 @@ module Terminal.Commands
 where
 
 import Data.Bifunctor (first)
-import Data.Char (isAlphaNum)
+import Data.Char (isAlphaNum, isSpace)
 import Data.Functor (($>))
+import qualified Data.GraphViz.Commands as Gv
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified Text.Parsec as Parsec
-import Text.Parsec ((<|>))
+import Text.Parsec ((<|>), parserFail)
 import qualified Text.Parsec.Char as P
 import qualified Text.Parsec.Combinator as P
 import Text.Parsec.Text (Parser)
+import Turtle (FilePath)
+import qualified Turtle
+import Prelude hiding (FilePath)
 
 typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands"
@@ -36,7 +40,7 @@ parseCommand input =
 
 data Command
   = Query [QueryItem]
-  | Export ExportFormat [QueryItem]
+  | Export FilePath Gv.GraphvizOutput [QueryItem]
   | ShowGraph
   | ShowHelp
   | EditSettings
@@ -49,11 +53,6 @@ data QueryItem
   | Fun Text
   deriving (Show, Eq)
 
-data ExportFormat
-  = Svg
-  | DotSource
-  deriving (Show, Eq)
-
 commandParser :: Parser Command
 commandParser =
   ( ( P.char ':'
@@ -62,8 +61,7 @@ commandParser =
             (symbol "q" *> (symbol "uit" <|> pure ())) $> Quit,
             (symbol "set" *> (symbol "tings" <|> pure ())) $> EditSettings,
             symbol "graph" $> ShowGraph,
-            Export <$> (symbol "export" *> exportFormat)
-              <*> queryItems
+            exportCommand
           ]
     )
       <|> (Query <$> queryItems)
@@ -71,12 +69,19 @@ commandParser =
     <* P.spaces
     <* P.eof
 
-exportFormat :: Parser ExportFormat
-exportFormat =
-  P.choice
-    [ symbol "dot" $> DotSource,
-      symbol "svg" $> Svg
-    ]
+exportCommand :: Parser Command
+exportCommand = do
+  _ <- symbol "export"
+  file <- exportFile
+  graphvizOutput <- case Turtle.extension file of
+    Just "dot" -> pure Gv.Canon
+    Just "svg" -> pure Gv.Svg
+    _ -> parserFail "Expected format of export command is :export FILE.(dot|svg) QUERY"
+  qis <- queryItems
+  pure $ Export file graphvizOutput qis
+
+exportFile :: Parser FilePath
+exportFile = Turtle.decodeString <$> P.many1 (P.satisfy (not . isSpace)) <* P.spaces
 
 queryItems :: Parser [QueryItem]
 queryItems = queryItem `P.sepBy1` (symbol ",")
@@ -103,12 +108,13 @@ showHelp :: IO ()
 showHelp =
   Text.putStrLn $
     "COMMANDS\n\
-    \  :help                      Show this help\n\
-    \  <query>                    Show function call graph for one or more (comma separated) functions\n\
-    \  :export FORMAT <query>     Export function call graph to file (supported FORMAT: dot|svg)\n\
-    \  :graph                     Show the entire call graph\n\
-    \  :set                       Adjust visualization settings\n\
-    \  :quit                      Quit the program"
+    \  :help                            Show this help\n\
+    \  <query>                          Show function call graph for one or more (comma separated) functions\n\
+    \                                   Query items can have the form package:module:function, module:function or function\n\
+    \  :export FILE.(dot|svg) <query>   Export function call graph to file\n\
+    \  :graph                           Show the entire call graph\n\
+    \  :set                             Adjust visualization settings\n\
+    \  :quit                            Quit the program"
 
 commandSuggestions :: [String]
 commandSuggestions =

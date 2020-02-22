@@ -66,6 +66,7 @@ test-suite fundeps-test
     build-depends:
         base >=4.7 && <5,
         fundeps,
+        graphviz,
         hspec,
         hspec-expectations
         
