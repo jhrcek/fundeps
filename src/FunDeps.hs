@@ -51,7 +51,6 @@ import qualified Terminal.Ansi as Ansi
 import qualified Terminal.Commands as Cmd
 import Terminal.Commands (QueryItem (..))
 import Turtle hiding (f, g, prefix, sortOn)
-import Turtle (FilePath)
 import Prelude hiding (FilePath)
 
 main :: IO ()
