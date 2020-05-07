@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -20,10 +21,10 @@ import Data.Graph.Inductive.PatriciaTree (Gr)
 import qualified Data.Graph.Inductive.Query.DFS as DFS
 import qualified Data.GraphViz as GraphViz
 import qualified Data.GraphViz.Algorithms
-import Data.GraphViz.Attributes (Shape (BoxShape), shape)
+import Data.GraphViz.Attributes (Shape (BoxShape), fillColor, filled, shape, style, textLabel)
+import Data.GraphViz.Attributes.Colors.SVG (SVGColor (Green, Red))
 import Data.GraphViz.Attributes.Complete
-  ( Attribute (Label, RankDir),
-    Label (StrLabel),
+  ( Attribute (RankDir),
   )
 import qualified Data.GraphViz.Commands as GvCmd
 import qualified Data.GraphViz.Types as GvTypes
@@ -63,10 +64,8 @@ main = do
 
 showDfsSubgraph :: GraphAction -> DepGraph -> Settings -> [G.Node] -> IO ()
 showDfsSubgraph graphAction DepGraph {graph, currentPackage} settings nodeIds = do
-  let reachableNodeIds = DFS.dfs nodeIds $
-        case _dependencyMode settings of
-          Callees -> graph
-          Callers -> GB.grev graph
+  let reachableNodes = getReachableNodes (_dependencyMode settings) graph nodeIds
+      reachableNodeIds = getReachableNodeIds reachableNodes
       subGraph = G.subgraph reachableNodeIds graph
   -- Warn about search nodes being excluded due to being from external packages
   unless (_includeExternalPackages settings) $ do
@@ -82,12 +81,72 @@ showDfsSubgraph graphAction DepGraph {graph, currentPackage} settings nodeIds = 
       cliWarn "These functions were excluded from the graph, because they come from external packages:"
       traverse_ (cliWarn . (" - " <>)) excludedDecls
   when (G.noNodes subGraph /= 0) $
-    runGraphAction graphAction settings currentPackage subGraph
+    let gvParams = highlightReachable reachableNodes $ paramsFromSettings settings
+     in runGraphAction graphAction settings currentPackage subGraph gvParams
 
-runGraphAction :: GraphAction -> Settings -> PackageName -> Graph -> IO ()
-runGraphAction graphAction settings currentPackage graph0 = do
+data ReachableNodes
+  = ReachableCallees {_searched :: [G.Node], _callees :: [G.Node]}
+  | ReachableCallers {_callers :: [G.Node], _searched :: [G.Node]}
+  | ReachableCallersAndCallees {_callers :: [G.Node], _searched :: [G.Node], _callees :: [G.Node]}
+
+getReachableNodes :: DependencyMode -> Graph -> [G.Node] -> ReachableNodes
+getReachableNodes dependencyMode graph fromNodes =
+  case dependencyMode of
+    Callees ->
+      ReachableCallees
+        { _searched = fromNodes,
+          _callees = DFS.dfs fromNodes graph
+        }
+    Callers ->
+      ReachableCallers
+        { _callers = DFS.dfs fromNodes (GB.grev graph),
+          _searched = fromNodes
+        }
+    CalllersAndCallees ->
+      ReachableCallersAndCallees
+        { _callers = DFS.dfs fromNodes (GB.grev graph),
+          _searched = fromNodes,
+          _callees = DFS.dfs fromNodes graph
+        }
+
+getReachableNodeIds :: ReachableNodes -> [G.Node]
+getReachableNodeIds = \case
+  ReachableCallees {_callees} -> _callees
+  ReachableCallers {_callers} -> _callers
+  ReachableCallersAndCallees {_callers, _callees} -> _callers <> _callees
+
+type GvParams = GraphViz.GraphvizParams G.Node Decl () () Decl
+
+paramsFromSettings :: Settings -> GvParams
+paramsFromSettings settings =
+  GraphViz.nonClusteredParams
+    { GraphViz.fmtNode = \(_nid, decl) -> [textLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl],
+      GraphViz.globalAttributes =
+        [ GraphViz.NodeAttrs [shape BoxShape],
+          GraphViz.GraphAttrs [RankDir $ _rankDir settings]
+        ]
+    }
+
+highlightReachable :: ReachableNodes -> GvParams -> GvParams
+highlightReachable rn params =
+  case rn of
+    ReachableCallersAndCallees {_callers, _callees} ->
+      params
+        { GraphViz.fmtNode = \(nid, decl) ->
+            GraphViz.fmtNode params (nid, decl)
+              <> if nid `elem` _callers
+                then [fillColor Green, style filled]
+                else
+                  if nid `elem` _callees
+                    then [fillColor Red, style filled]
+                    else []
+        }
+    _ -> params
+
+runGraphAction :: GraphAction -> Settings -> PackageName -> Graph -> GvParams -> IO ()
+runGraphAction graphAction settings currentPackage graph0 gvParams = do
   let graph1 = excludeExternalPackages settings currentPackage graph0
-      graph2 = GraphViz.graphToDot (gvParams settings) graph1
+      graph2 = GraphViz.graphToDot gvParams graph1
       graph3 = GraphViz.setStrictness (not $ _allowMultiEdges settings) graph2
       graph4 = removeTransitiveEdges settings graph3
       command = _graphvizCommand settings
@@ -140,16 +199,6 @@ removeTransitiveEdges :: Settings -> GraphViz.DotGraph G.Node -> GraphViz.DotGra
 removeTransitiveEdges settings
   | _transitiveReduction settings = Data.GraphViz.Algorithms.transitiveReduction
   | otherwise = id
-
-gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () () Decl
-gvParams settings =
-  GraphViz.nonClusteredParams
-    { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl],
-      GraphViz.globalAttributes =
-        [ GraphViz.NodeAttrs [shape BoxShape],
-          GraphViz.GraphAttrs [RankDir $ _rankDir settings]
-        ]
-    }
 
 formatNode :: NodeFormat -> Decl -> Text
 formatNode fmt (Decl p m f) = case fmt of
@@ -256,6 +305,7 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
   let settingsWithCompletion = Repl.setComplete completionFunc Repl.defaultSettings
   Repl.runInputT settingsWithCompletion $ loop settings_
   where
+    -- TODO convert this to `Repl.InputT (StateT Settings ())`
     loop :: Settings -> Repl.InputT IO ()
     loop settings = do
       minput <- Repl.getInputLine "> "
@@ -272,7 +322,7 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
               Cmd.ShowHelp ->
                 liftIO Cmd.showHelp >> loop settings
               Cmd.ShowGraph ->
-                liftIO (runGraphAction DrawInCanvas settings currentPackage graph) >> loop settings
+                liftIO (runGraphAction DrawInCanvas settings currentPackage graph (paramsFromSettings settings)) >> loop settings
               Cmd.EditSettings ->
                 liftIO (Settings.Editor.editSettings settings) >>= loop
               Cmd.Quit ->

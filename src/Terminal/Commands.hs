@@ -113,7 +113,7 @@ showHelp =
     \                                   Query items can have the form package:module:function, module:function or function\n\
     \  :export FILE.(dot|svg) <query>   Export function call graph to file\n\
     \  :graph                           Show the entire call graph\n\
-    \  :set                             Adjust visualization settings\n\
+    \  :settings                        Adjust visualization settings\n\
     \  :quit                            Quit the program"
 
 commandSuggestions :: [String]
@@ -121,6 +121,6 @@ commandSuggestions =
   [ ":graph",
     ":help",
     ":quit",
-    ":set",
+    ":settings",
     ":export"
   ]

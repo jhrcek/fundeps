@@ -25,6 +25,6 @@ getUsages = mfilter (\file -> extension file == Just "usages") (ls ".")
 
 parseArgs :: IO [Text]
 parseArgs =
-  options "Script to run fundeps"
+  options "Elm function declaration dependency visualizer"
     $ some
     $ argText "FILE(s)" "One or more elm files to compile"

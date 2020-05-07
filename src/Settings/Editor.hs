@@ -79,6 +79,7 @@ data Name
   | TransitiveReductionCheckBox
   | DependencyModeCallersRadio
   | DependencyModeCalleesRadio
+  | DependencyModeCallersAndCalleesRadio
   | GvCommandDotRadio
   | GvCommandNeatoRadio
   | GvCommandTwopiRadio
@@ -105,8 +106,9 @@ mkForm =
           label "Dependency mode"
             @@= radioField
               S.dependencyMode
-              [ (S.Callees, DependencyModeCallersRadio, "Callees"),
-                (S.Callers, DependencyModeCalleesRadio, "Callers")
+              [ (S.Callers, DependencyModeCalleesRadio, "Callers"),
+                (S.Callees, DependencyModeCallersRadio, "Callees"),
+                (S.CalllersAndCallees, DependencyModeCallersAndCalleesRadio, "Callers and callees")
               ],
           label "Graphviz command"
             @@= radioField

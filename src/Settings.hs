@@ -27,6 +27,7 @@ data NodeFormat
 data DependencyMode
   = Callees
   | Callers
+  | CalllersAndCallees
   deriving (Eq, Show)
 
 data Settings
