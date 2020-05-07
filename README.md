@@ -4,23 +4,17 @@
 
 An experimental CLI tool for visualization of elm declaration dependencies.
 
-# TODOs
-* Make the autocompletion work for queries of the form `Module:function` even for modules from external packages
-* Ask for confirmation when displaying too large graphs
-* Find better way how to integrate hacked elm compiler into the tool
-
 ## How to install
 
 :warning: This tool is still very much work in progress and will change a lot.
-The following installation steps will likely be simplified in the future :warning:
+The following installation steps will likely be simplified in the future 
 
 1. Make sure the [graphviz](https://www.graphviz.org/) toolset is installed on your system.
 
 2. Install `hacked-elm` binary (NOTE: This is modified version of elm compiler which writes out function usage data into file.)
    ```bash
-   git clone git@github.com:jhrcek/compiler.git
+   git clone git@github.com:jhrcek/compiler.git --branch hackCanonicalAST
    cd compiler
-   git checkout hackCanonicalAST
    stack install
    ```
    That should make the `hacked-elm` available on your path. You won't use this binary directly, it's used automatically by the `fundeps` tool installed next.
@@ -39,3 +33,7 @@ Move to a folder with elm project (where your elm.json is) and run
 ```bash
 fundeps path/to/Main.elm
 ```
+This will
+ 
+- compile the code with the hacked compiler, collecting data about what functions are used by what other functions
+- open repl-like CLI interface, where you can enter function name(s) (with TAB completion) and the tool will display graph of declaration dependencies for you chose function(s)
