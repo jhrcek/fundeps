@@ -29,16 +29,15 @@ data DependencyMode
   | Callers
   deriving (Eq, Show)
 
-data Settings
-  = Settings
-      { _allowMultiEdges :: Bool,
-        _dependencyMode :: DependencyMode,
-        _graphvizCommand :: GraphvizCommand,
-        _includeExternalPackages :: Bool,
-        _nodeFormat :: NodeFormat,
-        _rankDir :: RankDir,
-        _transitiveReduction :: Bool
-      }
+data Settings = Settings
+  { _allowMultiEdges :: Bool,
+    _dependencyMode :: DependencyMode,
+    _graphvizCommand :: GraphvizCommand,
+    _includeExternalPackages :: Bool,
+    _nodeFormat :: NodeFormat,
+    _rankDir :: RankDir,
+    _transitiveReduction :: Bool
+  }
   deriving (Show)
 
 makeLenses ''Settings

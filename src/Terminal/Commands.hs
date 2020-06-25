@@ -44,6 +44,7 @@ data Command
   | ShowGraph
   | ShowHelp
   | EditSettings
+  | NoOp
   | Quit
   deriving (Show, Eq)
 
@@ -65,6 +66,7 @@ commandParser =
           ]
     )
       <|> (Query <$> queryItems)
+      <|> (NoOp <$ P.eof)
   )
     <* P.spaces
     <* P.eof

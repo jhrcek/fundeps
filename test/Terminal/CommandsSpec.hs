@@ -9,6 +9,8 @@ import Test.Hspec
 spec :: Spec
 spec =
   describe "parseCommand" $ do
+    it "should parse empty input" $
+      parseCommand "" `shouldBe` Right NoOp
     it "should parse help" $
       parseCommand ":help" `shouldBe` Right ShowHelp
     it "should parse graph" $

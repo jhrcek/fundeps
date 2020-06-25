@@ -159,12 +159,11 @@ formatNode fmt (Decl p m f) = case fmt of
         [unModuleName m, unFunctionName f]
   ModuleFunction -> Text.unlines [unModuleName m, unFunctionName f]
 
-data Decl
-  = Decl
-      { _decl_package :: PackageName,
-        _decl_module :: ModuleName,
-        _decl_function :: FunctionName
-      }
+data Decl = Decl
+  { _decl_package :: PackageName,
+    _decl_module :: ModuleName,
+    _decl_function :: FunctionName
+  }
   deriving (Show, Eq, Ord)
 
 newtype PackageName = PackageName {unPackageName :: Text} deriving (Eq, Ord, Show) via Text
@@ -216,17 +215,16 @@ processEdges (a, b) = do
         newGraph = G.insEdge (fromId, toId, ()) g
      in DepGraph decls funs newGraph pkg
 
-data DepGraph
-  = DepGraph
-      { -- | map declarations to the node ID used in the graph
-        -- Invariant: function names in this map are exactly those that occur in the _declToNode
-        declToNode :: Map Decl G.Node,
-        -- | Map name of function to the set of declarations that have this function name
-        functionNameToNodes :: Map FunctionName (Set Decl),
-        graph :: Graph,
-        -- | to distinguish between this and 3rd party packages
-        currentPackage :: PackageName
-      }
+data DepGraph = DepGraph
+  { -- | map declarations to the node ID used in the graph
+    -- Invariant: function names in this map are exactly those that occur in the _declToNode
+    declToNode :: Map Decl G.Node,
+    -- | Map name of function to the set of declarations that have this function name
+    functionNameToNodes :: Map FunctionName (Set Decl),
+    graph :: Graph,
+    -- | to distinguish between this and 3rd party packages
+    currentPackage :: PackageName
+  }
   deriving (Show)
 
 type Graph = Gr Decl ()
@@ -260,7 +258,9 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
     loop settings = do
       minput <- Repl.getInputLine "> "
       case minput of
-        Nothing -> loop settings
+        Nothing ->
+          {- Nothing represents user pressing Ctrl+D with empty input -}
+          liftIO $ cliInfo "Bye!"
         Just line ->
           case Cmd.parseCommand (Text.pack line) of
             Left (Cmd.CommandParseError er) -> liftIO (cliWarn er) >> loop settings
@@ -275,6 +275,8 @@ terminalUI depGraph@DepGraph {currentPackage, graph, declToNode} settings_ = do
                 liftIO (runGraphAction DrawInCanvas settings currentPackage graph) >> loop settings
               Cmd.EditSettings ->
                 liftIO (Settings.Editor.editSettings settings) >>= loop
+              Cmd.NoOp ->
+                loop settings
               Cmd.Quit ->
                 liftIO $ cliInfo "Bye!"
           where
