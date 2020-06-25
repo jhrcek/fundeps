@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Settings.Editor where
 
@@ -97,7 +96,7 @@ mkForm =
   let label s w =
         padTop (Pad 1)
           $ hLimit 30
-          $ (withAttr title $ str s) <=> w
+          $ withAttr title (str s) <=> w
    in newForm
         [ unicodeCheckbox S.allowMultiEdges AllowMultiEdgesCheckBox "Allow multi edges",
           unicodeCheckbox S.includeExternalPackages IncludeExternalPackagesCheckBox "Include external packages",
@@ -160,7 +159,7 @@ handleEvent :: FormState -> BrickEvent Name Void -> EventM Name (Next FormState)
 handleEvent s event = case event of
   MouseDown SaveButton _ _ _ -> halt s
   VtyEvent (V.EvKey V.KEnter _) -> halt s
-  VtyEvent (V.EvResize {}) -> continue s
+  VtyEvent V.EvResize {} -> continue s
   _ -> handleFormEvent event s >>= continue
 
 editSettings :: Settings -> IO Settings

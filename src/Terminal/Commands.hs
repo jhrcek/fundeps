@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Terminal.Commands
@@ -79,14 +78,13 @@ exportCommand = do
     Just "dot" -> pure Gv.Canon
     Just "svg" -> pure Gv.Svg
     _ -> parserFail "Expected format of export command is :export FILE.(dot|svg) QUERY"
-  qis <- queryItems
-  pure $ Export file graphvizOutput qis
+  Export file graphvizOutput <$> queryItems
 
 exportFile :: Parser FilePath
 exportFile = Turtle.decodeString <$> P.many1 (P.satisfy (not . isSpace)) <* P.spaces
 
 queryItems :: Parser [QueryItem]
-queryItems = queryItem `P.sepBy1` (symbol ",")
+queryItems = queryItem `P.sepBy1` symbol ","
 
 queryItem :: Parser QueryItem
 queryItem =
@@ -108,7 +106,7 @@ lexeme p =
 
 showHelp :: IO ()
 showHelp =
-  Text.putStrLn $
+  Text.putStrLn
     "COMMANDS\n\
     \  :help                            Show this help\n\
     \  <query>                          Show function call graph for one or more (comma separated) functions\n\
