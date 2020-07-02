@@ -1,10 +1,10 @@
-cabal-version:      >=1.10
+cabal-version:      3.0
 name:               fundeps
 version:            0.1.0.0
-license:            BSD3
+license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2020 Jan Hrček
-maintainer:         example@example.com
+maintainer:         honza.hrk@gmail.com
 author:             Jan Hrček
 tested-with:        ghc ==8.8.3
 homepage:           https://github.com/jhrcek/fundeps#readme
