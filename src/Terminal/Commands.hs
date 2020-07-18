@@ -18,8 +18,8 @@ import qualified Data.GraphViz.Commands as Gv
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
+import Text.Parsec (parserFail, (<|>))
 import qualified Text.Parsec as Parsec
-import Text.Parsec ((<|>), parserFail)
 import qualified Text.Parsec.Char as P
 import qualified Text.Parsec.Combinator as P
 import Text.Parsec.Text (Parser)

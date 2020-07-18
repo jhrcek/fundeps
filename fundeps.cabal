@@ -39,7 +39,7 @@ library
     ghc-options:      -Wall
     build-depends:
         base >=4.7 && <5,
-        -- hardcoded brick version based on lts-16.2 to fix travis CI
+        -- hardcoded brick version based on lts-16.5 to fix travis CI
         brick ==0.52.1,
         containers,
         fgl,

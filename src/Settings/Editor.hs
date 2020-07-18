@@ -4,10 +4,8 @@
 module Settings.Editor where
 
 import Brick
-  ( (<=>),
-    App (..),
+  ( App (..),
     AttrName,
-    BrickEvent,
     BrickEvent (..),
     EventM,
     Next,
@@ -23,14 +21,14 @@ import Brick
     padTop,
     str,
     withAttr,
+    (<=>),
   )
 import Brick.AttrMap (AttrMap, attrMap)
 import Brick.Focus
   ( focusRingCursor,
   )
 import Brick.Forms
-  ( (@@=),
-    Form,
+  ( Form,
     FormFieldState,
     checkboxCustomField,
     focusedFormInputAttr,
@@ -41,6 +39,7 @@ import Brick.Forms
     newForm,
     radioField,
     renderForm,
+    (@@=),
   )
 import Brick.Util (on)
 import Brick.Widgets.Border (border, borderWithLabel)
@@ -51,7 +50,7 @@ import Data.GraphViz.Commands (GraphvizCommand (Circo, Dot, Neato, TwoPi))
 import Data.Text (Text)
 import Data.Void (Void)
 import qualified Graphics.Vty as V
-import Graphics.Vty.Attributes (black, black, blue, defAttr, red, white, yellow)
+import Graphics.Vty.Attributes (black, blue, defAttr, red, white, yellow)
 import Lens.Micro (Lens')
 import Settings (Settings)
 import qualified Settings as S
@@ -95,7 +94,7 @@ mkForm :: Settings -> FormState
 mkForm =
   let label s w =
         padTop (Pad 1)
-          $ hLimit 30
+          . hLimit 30
           $ withAttr title (str s) <=> w
    in newForm
         [ unicodeCheckbox S.allowMultiEdges AllowMultiEdgesCheckBox "Allow multi edges",
@@ -142,7 +141,7 @@ draw f = [center form]
         renderForm f <=> padLeft (Pad 25) button
     button =
       clickable SaveButton
-        $ border
+        . border
         $ str "Save"
 
 app :: App FormState Void Name

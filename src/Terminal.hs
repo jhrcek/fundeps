@@ -32,8 +32,8 @@ appDraw l = [C.center box]
     label = str "Multiple functions match your query. Pick one and press Enter"
     box =
       Border.borderWithLabel label
-        $ hLimit 80
-        $ vLimit 20
+        . hLimit 80
+        . vLimit 20
         $ L.renderList listDrawElement True l
 
 appHandleEvent :: Item a => Model a -> T.BrickEvent () Void -> T.EventM () (T.Next (Model a))

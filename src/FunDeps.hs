@@ -48,8 +48,8 @@ import qualified Settings.Editor
 import qualified System.Console.Haskeline as Repl
 import Terminal (Item (..), pickAnItem)
 import qualified Terminal.Ansi as Ansi
-import qualified Terminal.Commands as Cmd
 import Terminal.Commands (QueryItem (..))
+import qualified Terminal.Commands as Cmd
 import Turtle hiding (f, g, prefix, sortOn)
 import Prelude hiding (FilePath)
 
