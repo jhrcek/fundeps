@@ -39,7 +39,7 @@ library
     ghc-options:      -Wall
     build-depends:
         base >=4.7 && <5,
-        -- hardcoded brick version based on lts-16.5 to fix travis CI
+        -- hardcoded brick version based on lts-16.27 to fix travis CI
         brick ==0.52.1,
         containers,
         fgl,
@@ -57,13 +57,22 @@ library
 
 executable fundeps
     main-is:          Main.hs
-    hs-source-dirs:   app
+    hs-source-dirs:   fundeps
     default-language: Haskell2010
     ghc-options:      -threaded -rtsopts -with-rtsopts=-N -Wall
     build-depends:
         base >=4.7 && <5,
         fundeps,
         turtle
+
+executable fundeps-hs
+    main-is:          Main.hs
+    hs-source-dirs:   fundeps-hs
+    default-language: Haskell2010
+    ghc-options:      -threaded -rtsopts -with-rtsopts=-N -Wall
+    build-depends:
+        base >=4.7 && <5,
+        fundeps
 
 test-suite fundeps-test
     type:             exitcode-stdio-1.0

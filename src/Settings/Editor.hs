@@ -3,8 +3,11 @@
 
 module Settings.Editor where
 
-import Brick
-  ( App (..),
+import qualified Graphics.Vty as V
+import qualified Settings as S
+
+import Brick (
+    App (..),
     AttrName,
     BrickEvent (..),
     EventM,
@@ -22,13 +25,11 @@ import Brick
     str,
     withAttr,
     (<=>),
-  )
+ )
 import Brick.AttrMap (AttrMap, attrMap)
-import Brick.Focus
-  ( focusRingCursor,
-  )
-import Brick.Forms
-  ( Form,
+import Brick.Focus (focusRingCursor)
+import Brick.Forms (
+    Form,
     FormFieldState,
     checkboxCustomField,
     focusedFormInputAttr,
@@ -40,7 +41,7 @@ import Brick.Forms
     radioField,
     renderForm,
     (@@=),
-  )
+ )
 import Brick.Util (on)
 import Brick.Widgets.Border (border, borderWithLabel)
 import Brick.Widgets.Center (center)
@@ -49,127 +50,136 @@ import Data.GraphViz.Attributes.Complete (RankDir (..))
 import Data.GraphViz.Commands (GraphvizCommand (Circo, Dot, Neato, TwoPi))
 import Data.Text (Text)
 import Data.Void (Void)
-import qualified Graphics.Vty as V
 import Graphics.Vty.Attributes (black, blue, defAttr, red, white, yellow)
 import Lens.Micro (Lens')
 import Settings (Settings)
-import qualified Settings as S
+
 
 type FormState = Form Settings Void Name
 
+
 theMap :: AttrMap
 theMap =
-  attrMap
-    defAttr
-    [ (editAttr, white `on` blue),
-      (editFocusedAttr, black `on` yellow),
-      (invalidFormInputAttr, white `on` red),
-      (focusedFormInputAttr, black `on` yellow),
-      (title, V.withStyle V.defAttr V.bold)
-    ]
+    attrMap
+        defAttr
+        [ (editAttr, white `on` blue)
+        , (editFocusedAttr, black `on` yellow)
+        , (invalidFormInputAttr, white `on` red)
+        , (focusedFormInputAttr, black `on` yellow)
+        , (title, V.withStyle V.defAttr V.bold)
+        ]
+
 
 title :: AttrName
 title = attrName "title"
 
+
 data Name
-  = AllowMultiEdgesCheckBox
-  | IncludeExternalPackagesCheckBox
-  | TransitiveReductionCheckBox
-  | DependencyModeCallersRadio
-  | DependencyModeCalleesRadio
-  | GvCommandDotRadio
-  | GvCommandNeatoRadio
-  | GvCommandTwopiRadio
-  | GvCommandCircoRadio
-  | NodeFormatPackageModuleFunctionRadio
-  | NodeFormatModuleFunctionRadio
-  | RankdirFromLeftRadio
-  | RankdirFromRightRadio
-  | RankdirFromTopRadio
-  | RankdirFromBottomRadio
-  | SaveButton
-  deriving (Eq, Ord, Show)
+    = AllowMultiEdgesCheckBox
+    | IncludeExternalPackagesCheckBox
+    | TransitiveReductionCheckBox
+    | DependencyModeCallersRadio
+    | DependencyModeCalleesRadio
+    | GvCommandDotRadio
+    | GvCommandNeatoRadio
+    | GvCommandTwopiRadio
+    | GvCommandCircoRadio
+    | NodeFormatPackageModuleFunctionRadio
+    | NodeFormatModuleFunctionRadio
+    | RankdirFromLeftRadio
+    | RankdirFromRightRadio
+    | RankdirFromTopRadio
+    | RankdirFromBottomRadio
+    | SaveButton
+    deriving (Eq, Ord, Show)
+
 
 mkForm :: Settings -> FormState
 mkForm =
-  let label s w =
-        padTop (Pad 1)
-          . hLimit 30
-          $ withAttr title (str s) <=> w
-   in newForm
-        [ unicodeCheckbox S.allowMultiEdges AllowMultiEdgesCheckBox "Allow multi edges",
-          unicodeCheckbox S.includeExternalPackages IncludeExternalPackagesCheckBox "Include external packages",
-          unicodeCheckbox S.transitiveReduction TransitiveReductionCheckBox "Transitive reduction",
-          label "Dependency mode"
-            @@= radioField
-              S.dependencyMode
-              [ (S.Callees, DependencyModeCallersRadio, "Callees"),
-                (S.Callers, DependencyModeCalleesRadio, "Callers")
-              ],
-          label "Graphviz command"
-            @@= radioField
-              S.graphvizCommand
-              [ (Dot, GvCommandDotRadio, "Dot"),
-                (Neato, GvCommandNeatoRadio, "Neato"),
-                (TwoPi, GvCommandTwopiRadio, "Twopi"),
-                (Circo, GvCommandCircoRadio, "Circo")
-              ],
-          label "Node format"
-            @@= radioField
-              S.nodeFormat
-              [ (S.PackageModuleFunction, NodeFormatPackageModuleFunctionRadio, "Package:Module:Function"),
-                (S.ModuleFunction, NodeFormatModuleFunctionRadio, "Module:Function")
-              ],
-          label "Direction of edges"
-            @@= radioField
-              S.rankDir
-              [ (FromLeft, RankdirFromLeftRadio, "Left to right"),
-                (FromRight, RankdirFromRightRadio, "Right to left"),
-                (FromTop, RankdirFromTopRadio, "Top to bottom"),
-                (FromBottom, RankdirFromBottomRadio, "Bottom to top")
-              ]
-        ]
+    let label s w =
+            padTop (Pad 1)
+                . hLimit 30
+                $ withAttr title (str s) <=> w
+     in newForm
+            [ unicodeCheckbox S.allowMultiEdges AllowMultiEdgesCheckBox "Allow multi edges"
+            , unicodeCheckbox S.includeExternalPackages IncludeExternalPackagesCheckBox "Include external packages"
+            , unicodeCheckbox S.transitiveReduction TransitiveReductionCheckBox "Transitive reduction"
+            , label "Dependency mode"
+                @@= radioField
+                    S.dependencyMode
+                    [ (S.Callees, DependencyModeCallersRadio, "Callees")
+                    , (S.Callers, DependencyModeCalleesRadio, "Callers")
+                    ]
+            , label "Graphviz command"
+                @@= radioField
+                    S.graphvizCommand
+                    [ (Dot, GvCommandDotRadio, "Dot")
+                    , (Neato, GvCommandNeatoRadio, "Neato")
+                    , (TwoPi, GvCommandTwopiRadio, "Twopi")
+                    , (Circo, GvCommandCircoRadio, "Circo")
+                    ]
+            , label "Node format"
+                @@= radioField
+                    S.nodeFormat
+                    [ (S.PackageModuleFunction, NodeFormatPackageModuleFunctionRadio, "Package:Module:Function")
+                    , (S.ModuleFunction, NodeFormatModuleFunctionRadio, "Module:Function")
+                    ]
+            , label "Direction of edges"
+                @@= radioField
+                    S.rankDir
+                    [ (FromLeft, RankdirFromLeftRadio, "Left to right")
+                    , (FromRight, RankdirFromRightRadio, "Right to left")
+                    , (FromTop, RankdirFromTopRadio, "Top to bottom")
+                    , (FromBottom, RankdirFromBottomRadio, "Bottom to top")
+                    ]
+            ]
+
 
 unicodeCheckbox :: Lens' s Bool -> Name -> Text -> s -> FormFieldState s Void Name
 unicodeCheckbox = checkboxCustomField '[' '\10003' ']'
+
 
 draw :: FormState -> [Widget Name]
 draw f = [center form]
   where
     form =
-      borderWithLabel (str "Settings") $
-        renderForm f <=> padLeft (Pad 25) button
+        borderWithLabel (str "Settings") $
+            renderForm f <=> padLeft (Pad 25) button
     button =
-      clickable SaveButton
-        . border
-        $ str "Save"
+        clickable SaveButton
+            . border
+            $ str "Save"
+
 
 app :: App FormState Void Name
 app =
-  App
-    { appDraw = draw,
-      appHandleEvent = handleEvent,
-      appChooseCursor = focusRingCursor formFocus,
-      appStartEvent = return,
-      appAttrMap = const theMap
-    }
+    App
+        { appDraw = draw
+        , appHandleEvent = handleEvent
+        , appChooseCursor = focusRingCursor formFocus
+        , appStartEvent = return
+        , appAttrMap = const theMap
+        }
+
 
 handleEvent :: FormState -> BrickEvent Name Void -> EventM Name (Next FormState)
 handleEvent s event = case event of
-  MouseDown SaveButton _ _ _ -> halt s
-  VtyEvent (V.EvKey V.KEnter _) -> halt s
-  VtyEvent V.EvResize {} -> continue s
-  _ -> handleFormEvent event s >>= continue
+    MouseDown SaveButton _ _ _ -> halt s
+    VtyEvent (V.EvKey V.KEnter _) -> halt s
+    VtyEvent V.EvResize{} -> continue s
+    _ -> handleFormEvent event s >>= continue
+
 
 editSettings :: Settings -> IO Settings
 editSettings settings = do
-  let buildVty = do
-        v <- V.mkVty =<< V.standardIOConfig
-        V.setMode (V.outputIface v) V.Mouse True
-        return v
-      form0 = mkForm settings
-  initialVty <- buildVty
-  formState <$> customMain initialVty buildVty Nothing app form0
+    let buildVty = do
+            v <- V.mkVty =<< V.standardIOConfig
+            V.setMode (V.outputIface v) V.Mouse True
+            return v
+        form0 = mkForm settings
+    initialVty <- buildVty
+    formState <$> customMain initialVty buildVty Nothing app form0
+
 
 main :: IO ()
 main = editSettings S.defaultSettings >>= print
