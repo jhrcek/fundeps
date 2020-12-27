@@ -142,15 +142,27 @@ removeTransitiveEdges settings
     | otherwise = id
 
 
-gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () () Decl
-gvParams settings =
-    GraphViz.nonClusteredParams
-        { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
-        , GraphViz.globalAttributes =
-            [ GraphViz.NodeAttrs [shape BoxShape]
-            , GraphViz.GraphAttrs [RankDir $ _rankDir settings]
-            ]
-        }
+gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () ModuleName Decl
+gvParams settings
+    | _clusterByModule settings =
+        sharedParams
+            { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode Function decl]
+            , GraphViz.clusterBy = \(nid, decl) -> GraphViz.C (_decl_module decl) $ GraphViz.N (nid, decl)
+            , GraphViz.clusterID = GraphViz.Str . LText.fromStrict . unModuleName
+            , GraphViz.fmtCluster = \modName -> [GraphViz.GraphAttrs [Label . StrLabel . LText.fromStrict $ unModuleName modName]]
+            }
+    | otherwise =
+        sharedParams
+            { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
+            }
+  where
+    sharedParams =
+        GraphViz.defaultParams
+            { GraphViz.globalAttributes =
+                [ GraphViz.NodeAttrs [shape BoxShape]
+                , GraphViz.GraphAttrs [RankDir $ _rankDir settings]
+                ]
+            }
 
 
 formatNode :: NodeFormat -> Decl -> Text
@@ -160,6 +172,7 @@ formatNode fmt (Decl p m f) = case fmt of
             (if Text.null (unPackageName p) then id else (unPackageName p :))
                 [unModuleName m, unFunctionName f]
     ModuleFunction -> Text.unlines [unModuleName m, unFunctionName f]
+    Function -> unFunctionName f
 
 
 data Decl = Decl

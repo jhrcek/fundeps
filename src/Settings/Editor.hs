@@ -76,6 +76,7 @@ title = attrName "title"
 
 data Name
     = AllowMultiEdgesCheckBox
+    | ClusterByModuleCheckBox
     | IncludeExternalPackagesCheckBox
     | TransitiveReductionCheckBox
     | DependencyModeCallersRadio
@@ -86,6 +87,7 @@ data Name
     | GvCommandCircoRadio
     | NodeFormatPackageModuleFunctionRadio
     | NodeFormatModuleFunctionRadio
+    | NodeFormatFunctionRadio
     | RankdirFromLeftRadio
     | RankdirFromRightRadio
     | RankdirFromTopRadio
@@ -104,6 +106,7 @@ mkForm =
             [ unicodeCheckbox S.allowMultiEdges AllowMultiEdgesCheckBox "Allow multi edges"
             , unicodeCheckbox S.includeExternalPackages IncludeExternalPackagesCheckBox "Include external packages"
             , unicodeCheckbox S.transitiveReduction TransitiveReductionCheckBox "Transitive reduction"
+            , unicodeCheckbox S.clusterByModule ClusterByModuleCheckBox "Cluster by module"
             , label "Dependency mode"
                 @@= radioField
                     S.dependencyMode
@@ -123,6 +126,7 @@ mkForm =
                     S.nodeFormat
                     [ (S.PackageModuleFunction, NodeFormatPackageModuleFunctionRadio, "Package:Module:Function")
                     , (S.ModuleFunction, NodeFormatModuleFunctionRadio, "Module:Function")
+                    , (S.Function, NodeFormatFunctionRadio, "Function")
                     ]
             , label "Direction of edges"
                 @@= radioField
