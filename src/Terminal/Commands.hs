@@ -103,7 +103,7 @@ queryItem =
         <|> (Fun <$> funct)
   where
     sat = fmap Text.pack . P.many1 . P.satisfy
-    pkg = sat $ \c -> isAlphaNum c || c == '/' || c == '-'
+    pkg = sat $ \c -> isAlphaNum c || c `elem` ['/', '-', '.']
     modul = sat $ \c -> isAlphaNum c || c == '.' || c == '-'
     funct = sat $ \c -> isAlphaNum c || c == '_'
 

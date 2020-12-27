@@ -52,6 +52,10 @@ spec =
                 parseCommand "elm-community/maybe-extra:Maybe.Extra:andMap" `shouldBe` Right (Query [PkgModFun "elm-community/maybe-extra" "Maybe.Extra" "andMap"])
             it "should parse module:function query" $
                 parseCommand "List:map" `shouldBe` Right (Query [ModFun "List" "map"])
-            it "should parse package:module:function query" $
-                parseCommand "elm/core:List:map"
-                    `shouldBe` Right (Query [PkgModFun "elm/core" "List" "map"])
+            describe "should parse package:module:function query" $ do
+                it "package with '/'" $
+                    parseCommand "elm/core:List:map"
+                        `shouldBe` Right (Query [PkgModFun "elm/core" "List" "map"])
+                it "package with '.'" $
+                    parseCommand "Only-0.1:Data.Tuple.Only:fromOnly"
+                        `shouldBe` Right (Query [PkgModFun "Only-0.1" "Data.Tuple.Only" "fromOnly"])
