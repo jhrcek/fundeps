@@ -5,6 +5,7 @@ module Settings (
     Settings (..),
     NodeFormat (..),
     clusterByModule,
+    clusterByPackage,
     defaultSettings,
     rankDir,
     transitiveReduction,
@@ -36,12 +37,11 @@ data DependencyMode
 data Settings = Settings
     { _allowMultiEdges :: Bool
     , _clusterByModule :: Bool
+    , _clusterByPackage :: Bool
     , _dependencyMode :: DependencyMode
     , _graphvizCommand :: GraphvizCommand
     , _includeExternalPackages :: Bool
-    , -- TODO there's functional dependency (if _clusterByModule == True => _nodeFormat == Function)
-      -- So the settings form should set nodeFormat to Function and disable node format subform when clusterByModule is set to True
-      _nodeFormat :: NodeFormat
+    , _nodeFormat :: NodeFormat
     , _rankDir :: RankDir
     , _transitiveReduction :: Bool
     }
@@ -54,12 +54,13 @@ makeLenses ''Settings
 defaultSettings :: Settings
 defaultSettings =
     Settings
-        { _allowMultiEdges = True
+        { _allowMultiEdges = False
         , _dependencyMode = Callers
         , _clusterByModule = True
+        , _clusterByPackage = True
         , _graphvizCommand = Dot
         , _includeExternalPackages = False
-        , _nodeFormat = ModuleFunction
+        , _nodeFormat = Function
         , _rankDir = FromLeft
         , _transitiveReduction = True
         }

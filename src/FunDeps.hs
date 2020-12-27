@@ -142,33 +142,41 @@ removeTransitiveEdges settings
     | otherwise = id
 
 
-gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () ModuleName Decl
-gvParams settings
-    | _clusterByModule settings =
-        sharedParams
-            { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode Function decl]
-            , GraphViz.clusterBy = \(nid, decl) -> GraphViz.C (_decl_module decl) $ GraphViz.N (nid, decl)
-            , GraphViz.clusterID = GraphViz.Str . LText.fromStrict . unModuleName
-            , GraphViz.fmtCluster = \modName -> [GraphViz.GraphAttrs [Label . StrLabel . LText.fromStrict $ unModuleName modName]]
-            }
-    | otherwise =
-        sharedParams
-            { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
-            }
-  where
-    sharedParams =
-        GraphViz.defaultParams
-            { GraphViz.globalAttributes =
-                [ GraphViz.NodeAttrs [shape BoxShape]
-                , GraphViz.GraphAttrs [RankDir $ _rankDir settings]
+gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () ClusterLabel Decl
+gvParams settings =
+    GraphViz.defaultParams
+        { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
+        , GraphViz.clusterBy = \(nid, decl) ->
+            (if _clusterByPackage settings then GraphViz.C (PackageCluster $ _decl_package decl) else id) $
+                (if _clusterByModule settings then GraphViz.C (ModuleCluster $ _decl_module decl) else id) $
+                    GraphViz.N (nid, decl)
+        , GraphViz.clusterID = \cl -> GraphViz.Str . LText.fromStrict $ case cl of
+            PackageCluster pkgName -> "pkg:" <> unPackageName pkgName
+            ModuleCluster modName -> "mod:" <> unModuleName modName
+        , GraphViz.fmtCluster = \cl ->
+            [ GraphViz.GraphAttrs
+                [ Label . StrLabel . LText.fromStrict $ case cl of
+                    PackageCluster pkgName -> unPackageName pkgName
+                    ModuleCluster modName -> unModuleName modName
                 ]
-            }
+            ]
+        , GraphViz.globalAttributes =
+            [ GraphViz.NodeAttrs [shape BoxShape]
+            , GraphViz.GraphAttrs [RankDir $ _rankDir settings]
+            ]
+        }
+
+
+data ClusterLabel
+    = PackageCluster PackageName
+    | ModuleCluster ModuleName
+    deriving (Eq, Ord)
 
 
 formatNode :: NodeFormat -> Decl -> Text
 formatNode fmt (Decl p m f) = case fmt of
     PackageModuleFunction ->
-        Text.intercalate ":" $
+        Text.unlines $
             (if Text.null (unPackageName p) then id else (unPackageName p :))
                 [unModuleName m, unFunctionName f]
     ModuleFunction -> Text.unlines [unModuleName m, unFunctionName f]

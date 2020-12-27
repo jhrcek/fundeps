@@ -77,6 +77,7 @@ title = attrName "title"
 data Name
     = AllowMultiEdgesCheckBox
     | ClusterByModuleCheckBox
+    | ClusterByPackageCheckBox
     | IncludeExternalPackagesCheckBox
     | TransitiveReductionCheckBox
     | DependencyModeCallersRadio
@@ -107,6 +108,7 @@ mkForm =
             , unicodeCheckbox S.includeExternalPackages IncludeExternalPackagesCheckBox "Include external packages"
             , unicodeCheckbox S.transitiveReduction TransitiveReductionCheckBox "Transitive reduction"
             , unicodeCheckbox S.clusterByModule ClusterByModuleCheckBox "Cluster by module"
+            , unicodeCheckbox S.clusterByPackage ClusterByPackageCheckBox "Cluster by package"
             , label "Dependency mode"
                 @@= radioField
                     S.dependencyMode
