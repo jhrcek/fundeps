@@ -12,10 +12,7 @@ module Data.Declaration (
 
 import qualified Data.Text as Text
 
--- import Data.List.NonEmpty (NonEmpty)
--- import Data.Map.Strict (Map)
 import Data.Text (Text)
-
 import Terminal (Item (showItem))
 
 

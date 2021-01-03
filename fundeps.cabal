@@ -6,7 +6,7 @@ license-file:       LICENSE
 copyright:          2020 Jan Hrček
 maintainer:         honza.hrk@gmail.com
 author:             Jan Hrček
-tested-with:        ghc ==8.8.3
+tested-with:        ghc ==8.8.4
 homepage:           https://github.com/jhrcek/fundeps#readme
 synopsis:
     An experimental CLI tool for visualization of elm declaration dependencies.
@@ -31,6 +31,7 @@ library
 
     hs-source-dirs:   src
     other-modules:
+        FunDeps.Server
         Settings
         Settings.Editor
         Terminal
@@ -40,6 +41,7 @@ library
     ghc-options:      -Wall
     build-depends:
         base >=4.7 && <5,
+        aeson,
         -- hardcoded brick version based on lts-16.27 to fix travis CI
         brick ==0.52.1,
         containers,
@@ -50,11 +52,15 @@ library
         microlens,
         microlens-th,
         parsec,
+        servant,
+        servant-server,
         text,
         transformers,
         turtle,
         vector,
-        vty
+        vty,
+        wai,
+        warp
 
 executable fundeps
     main-is:          Main.hs

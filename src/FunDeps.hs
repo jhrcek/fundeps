@@ -47,7 +47,9 @@ import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Monoid (Endo (..))
 import Data.Set (Set)
+import FunDeps.Server
 import Settings (DependencyMode (..), Settings (..), defaultSettings)
+import System.Environment (getArgs)
 import Terminal (pickAnItem)
 import Terminal.Commands (QueryItem (..))
 import Turtle hiding (f, g, prefix, sortOn)
@@ -60,7 +62,26 @@ main = do
     edges <- loadEdgesOrDie
     let depGraph = buildDepGraph edges
     reportSize depGraph
-    terminalUI depGraph defaultSettings
+    args <- parseArgs
+    case argsUiMode args of
+        Cli -> terminalUI depGraph defaultSettings
+        HttpServer port -> runServer port (declToNode depGraph)
+
+
+-- TODO proper args parsing
+parseArgs :: IO Args
+parseArgs = do
+    args <- getArgs
+    pure $
+        Args $ case args of
+            ["http"] -> HttpServer 3003
+            _ -> Cli
+
+
+data Args = Args {argsUiMode :: UiMode}
+
+
+data UiMode = Cli | HttpServer Int
 
 
 showDfsSubgraph :: GraphAction -> DepGraph -> Settings -> [G.Node] -> IO ()
