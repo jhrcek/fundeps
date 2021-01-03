@@ -239,7 +239,7 @@ data DepGraph = DepGraph
       functionNameToNodes :: Map FunctionName (Set Decl)
     , graph :: Graph
     , -- | to distinguish between this and 3rd party packages
-      -- TODO it's no longer true that there's unique current package
+      -- TODO when loading stuff from multi-package hs project there might not be a single "current" package
       currentPackage :: PackageName
     }
     deriving (Show)
@@ -334,10 +334,10 @@ lookupItems depGraph =
 
 
 lookupFunctionId :: DepGraph -> QueryItem -> LookupResult
-lookupFunctionId (DepGraph decls funs _ _) qi =
+lookupFunctionId (DepGraph decls funs _ curPkg) qi =
     case qi of
         PkgModFun p m f -> lookupUnique (Decl p m f)
-        ModFun m f -> lookupUnique (Decl (PackageName "") m f)
+        ModFun m f -> lookupUnique (Decl curPkg m f)
         Fun fname -> case Map.lookup fname funs of
             Nothing -> NotFound $ unFunctionName fname
             Just declSet -> case Set.toList declSet of

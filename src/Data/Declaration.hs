@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Data.Declaration (
     Decl (..),
@@ -33,10 +34,10 @@ instance Item Decl where
 formatNode :: NodeFormat -> Decl -> Text
 formatNode fmt (Decl p m f) = case fmt of
     PackageModuleFunction ->
-        Text.unlines $
+        Text.intercalate ":" $
             (if Text.null (unPackageName p) then id else (unPackageName p :))
                 [unModuleName m, unFunctionName f]
-    ModuleFunction -> Text.unlines [unModuleName m, unFunctionName f]
+    ModuleFunction -> unModuleName m <> ":" <> unFunctionName f
     Function -> unFunctionName f
 
 
