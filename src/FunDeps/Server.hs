@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -8,8 +9,8 @@ module FunDeps.Server (runServer) where
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Map.Strict as Map
 
-import Data.Aeson (KeyValue ((.=)), ToJSON (toJSON), object)
-import Data.Declaration (Decl (..), FunctionName (unFunctionName), ModuleName (unModuleName), PackageName (unPackageName))
+import Data.Aeson (ToJSON)
+import Data.Declaration (Decl (..), FunctionName, ModuleName, PackageName)
 import Data.Map.Strict (Map)
 import Data.Proxy (Proxy (..))
 import Network.Wai (Application)
@@ -28,27 +29,37 @@ app :: AllDecls -> Application
 app decls = serve (Proxy @FunDepsApi) (funDepsHandlers decls)
 
 
-type FunDepsApi = "decls" :> Get '[JSON] AllDecls
+type FunDepsApi = "declarations" :> Get '[JSON] AllDecls
 
 
-newtype AllDecls = AllDecls [(Decl, G.Node)]
+type DeclMap = Map PackageName (Map ModuleName (Map FunctionName G.Node))
 
 
-instance ToJSON AllDecls where
-    toJSON (AllDecls decls) =
-        toJSON $ declToJson <$> decls
-      where
-        declToJson (Decl p m f, nid) =
-            object
-                [ "p" .= unPackageName p
-                , "m" .= unModuleName m
-                , "f" .= unFunctionName f
-                , "nid" .= nid
-                ]
+newtype AllDecls = AllDecls DeclMap deriving (ToJSON) via DeclMap
 
 
 toAllDecls :: Map Decl G.Node -> AllDecls
-toAllDecls = AllDecls . Map.toList
+toAllDecls = AllDecls . go
+  where
+    go =
+        Map.foldrWithKey'
+            ( \(Decl p m f) nid pkgMap ->
+                Map.alter
+                    ( \mayModMap -> Just $ case mayModMap of
+                        Nothing -> Map.singleton m $ Map.singleton f nid
+                        Just modMap ->
+                            Map.alter
+                                ( \mayFunMap -> Just $ case mayFunMap of
+                                    Nothing -> Map.singleton f nid
+                                    Just funMap -> Map.insert f nid funMap
+                                )
+                                m
+                                modMap
+                    )
+                    p
+                    pkgMap
+            )
+            Map.empty
 
 
 funDepsHandlers :: AllDecls -> Server FunDepsApi

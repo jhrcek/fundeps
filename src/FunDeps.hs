@@ -47,7 +47,7 @@ import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Monoid (Endo (..))
 import Data.Set (Set)
-import FunDeps.Server
+import FunDeps.Server (runServer)
 import Settings (DependencyMode (..), Settings (..), defaultSettings)
 import System.Environment (getArgs)
 import Terminal (pickAnItem)

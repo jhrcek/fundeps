@@ -12,6 +12,7 @@ module Data.Declaration (
 
 import qualified Data.Text as Text
 
+import Data.Aeson (ToJSON, ToJSONKey)
 import Data.Text (Text)
 import Terminal (Item (showItem))
 
@@ -45,22 +46,13 @@ data NodeFormat
     deriving (Eq, Show)
 
 
-{- | All the 'Decl's we load are assumed to form a forest, where the first level
-are the packages, the second are modules and the third are function names.
-Selecting subset of decl's essentially means selecting a subforest of this forest.
--}
-
--- newtype NewQuery = NewQuery
---     (Map PackageName
---         (Map ModuleName
---             (NonEmpty FunctionName)
---         )
---     )
-
-newtype PackageName = PackageName {unPackageName :: Text} deriving (Eq, Ord, Show) via Text
+newtype PackageName = PackageName {unPackageName :: Text}
+    deriving (Eq, Ord, Show, ToJSON, ToJSONKey) via Text
 
 
-newtype ModuleName = ModuleName {unModuleName :: Text} deriving (Eq, Ord, Show) via Text
+newtype ModuleName = ModuleName {unModuleName :: Text}
+    deriving (Eq, Ord, Show, ToJSON, ToJSONKey) via Text
 
 
-newtype FunctionName = FunctionName {unFunctionName :: Text} deriving (Eq, Ord, Show) via Text
+newtype FunctionName = FunctionName {unFunctionName :: Text}
+    deriving (Eq, Ord, Show, ToJSON, ToJSONKey) via Text
