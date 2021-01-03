@@ -12,7 +12,7 @@ import qualified Control.Monad.Trans.State.Strict as State
 import qualified Data.Graph.Inductive.Basic as GB
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Graph.Inductive.Query.DFS as DFS
-import qualified Data.GraphViz as GraphViz
+import qualified Data.GraphViz as GV
 import qualified Data.GraphViz.Algorithms
 import qualified Data.GraphViz.Commands as GvCmd
 import qualified Data.GraphViz.Types as GvTypes
@@ -41,7 +41,6 @@ import Data.Declaration (
  )
 import Data.Foldable (for_, traverse_)
 import Data.Graph.Inductive.PatriciaTree (Gr)
-import Data.GraphViz.Attributes (Shape (BoxShape), shape)
 import Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir), Label (StrLabel))
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Map.Strict (Map)
@@ -91,8 +90,8 @@ showDfsSubgraph graphAction DepGraph{graph, currentPackage} settings nodeIds = d
 runGraphAction :: GraphAction -> Settings -> PackageName -> Graph -> IO ()
 runGraphAction graphAction settings currentPackage graph0 = do
     let graph1 = appEndo (excludeExternalPackages settings currentPackage) graph0
-        graph2 = GraphViz.graphToDot (gvParams settings) graph1
-        graph3 = GraphViz.setStrictness (not $ _allowMultiEdges settings) graph2
+        graph2 = GV.graphToDot (gvParams settings) graph1
+        graph3 = GV.setStrictness (not $ _allowMultiEdges settings) graph2
         graph4 = appEndo (removeTransitiveEdges settings) graph3
         command = _graphvizCommand settings
         externalNodesExcluded = G.noNodes graph0 - G.noNodes graph1
@@ -127,7 +126,7 @@ data GraphAction
     | ExportToFile FilePath GvCmd.GraphvizOutput
 
 
-executeGraphAction :: GvCmd.GraphvizCommand -> GraphViz.DotGraph G.Node -> GraphAction -> IO ()
+executeGraphAction :: GV.GraphvizCommand -> GV.DotGraph G.Node -> GraphAction -> IO ()
 executeGraphAction gvCommand graph action = case action of
     DrawInCanvas -> void . forkIO $ GvCmd.runGraphvizCanvas gvCommand graph GvCmd.Xlib
     (ExportToFile file gvOutput) ->
@@ -145,33 +144,44 @@ excludeExternalPackages settings currentPackage
     | otherwise = Endo $ G.labfilter ((currentPackage ==) . _decl_package)
 
 
-removeTransitiveEdges :: Settings -> Endo (GraphViz.DotGraph G.Node)
+removeTransitiveEdges :: Settings -> Endo (GV.DotGraph G.Node)
 removeTransitiveEdges settings
     | _transitiveReduction settings = Endo Data.GraphViz.Algorithms.transitiveReduction
     | otherwise = mempty
 
 
-gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () ClusterLabel Decl
+gvParams :: Settings -> GV.GraphvizParams G.Node Decl () ClusterLabel Decl
 gvParams settings =
-    GraphViz.defaultParams
-        { GraphViz.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
-        , GraphViz.clusterBy = \(nid, decl) ->
-            (if _clusterByPackage settings then GraphViz.C (PackageCluster $ _decl_package decl) else id) $
-                (if _clusterByModule settings then GraphViz.C (ModuleCluster $ _decl_module decl) else id) $
-                    GraphViz.N (nid, decl)
-        , GraphViz.clusterID = \cl -> GraphViz.Str . LText.fromStrict $ case cl of
+    GV.defaultParams
+        { GV.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
+        , GV.clusterBy = \(nid, decl) ->
+            (if _clusterByPackage settings then GV.C (PackageCluster $ _decl_package decl) else id) $
+                (if _clusterByModule settings then GV.C (ModuleCluster $ _decl_module decl) else id) $
+                    GV.N (nid, decl)
+        , GV.clusterID = \cl -> GV.Str . LText.fromStrict $ case cl of
             PackageCluster pkgName -> "pkg:" <> unPackageName pkgName
             ModuleCluster modName -> "mod:" <> unModuleName modName
-        , GraphViz.fmtCluster = \cl ->
-            [ GraphViz.GraphAttrs
-                [ Label . StrLabel . LText.fromStrict $ case cl of
-                    PackageCluster pkgName -> unPackageName pkgName
-                    ModuleCluster modName -> unModuleName modName
-                ]
+        , GV.fmtCluster = \cl ->
+            [ GV.GraphAttrs $
+                case cl of
+                    PackageCluster pkgName ->
+                        [ Label . StrLabel . LText.fromStrict $ unPackageName pkgName
+                        , GV.style GV.filled
+                        , GV.fillColor GV.PowderBlue
+                        ]
+                    ModuleCluster modName ->
+                        [ Label . StrLabel . LText.fromStrict $ unModuleName modName
+                        , GV.style GV.filled
+                        , GV.fillColor GV.PeachPuff
+                        ]
             ]
-        , GraphViz.globalAttributes =
-            [ GraphViz.NodeAttrs [shape BoxShape]
-            , GraphViz.GraphAttrs [RankDir $ _rankDir settings]
+        , GV.globalAttributes =
+            [ GV.NodeAttrs
+                [ GV.shape GV.BoxShape
+                , GV.style GV.filled
+                , GV.fillColor GV.Azure
+                ]
+            , GV.GraphAttrs [RankDir $ _rankDir settings]
             ]
         }
 
