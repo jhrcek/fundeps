@@ -18,9 +18,9 @@ import Terminal (Item (showItem))
 
 
 data Decl = Decl
-    { _decl_package :: PackageName
-    , _decl_module :: ModuleName
-    , _decl_function :: FunctionName
+    { declPackage :: PackageName
+    , declModule :: ModuleName
+    , declFunction :: FunctionName
     }
     deriving (Show, Eq, Ord)
 

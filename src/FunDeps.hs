@@ -32,7 +32,7 @@ import Control.Concurrent (forkIO)
 import Control.Monad.Trans.State.Strict (State)
 import Data.Containers.ListUtils (nubOrd)
 import Data.Declaration (
-    Decl (Decl, _decl_module, _decl_package),
+    Decl (Decl, declModule, declPackage),
     FunctionName (..),
     ModuleName (..),
     NodeFormat (..),
@@ -97,7 +97,7 @@ showDfsSubgraph graphAction DepGraph{graph, currentPackage} settings nodeIds = d
                 mapMaybe
                     ( \nodeId -> do
                         decl <- G.lab graph nodeId
-                        guard (_decl_package decl /= currentPackage)
+                        guard (declPackage decl /= currentPackage)
                         pure $ formatNode PackageModuleFunction decl
                     )
                     nodeIds
@@ -162,7 +162,7 @@ executeGraphAction gvCommand graph action = case action of
 excludeExternalPackages :: Settings -> PackageName -> Endo Graph
 excludeExternalPackages settings currentPackage
     | _includeExternalPackages settings = mempty
-    | otherwise = Endo $ G.labfilter ((currentPackage ==) . _decl_package)
+    | otherwise = Endo $ G.labfilter ((currentPackage ==) . declPackage)
 
 
 removeTransitiveEdges :: Settings -> Endo (GV.DotGraph G.Node)
@@ -176,8 +176,8 @@ gvParams settings =
     GV.defaultParams
         { GV.fmtNode = \(_nid, decl) -> [Label . StrLabel . LText.fromStrict $ formatNode (_nodeFormat settings) decl]
         , GV.clusterBy = \(nid, decl) ->
-            (if _clusterByPackage settings then GV.C (PackageCluster $ _decl_package decl) else id) $
-                (if _clusterByModule settings then GV.C (ModuleCluster $ _decl_module decl) else id) $
+            (if _clusterByPackage settings then GV.C (PackageCluster $ declPackage decl) else id) $
+                (if _clusterByModule settings then GV.C (ModuleCluster $ declModule decl) else id) $
                     GV.N (nid, decl)
         , GV.clusterID = \cl -> GV.Str . LText.fromStrict $ case cl of
             PackageCluster pkgName -> "pkg:" <> unPackageName pkgName
@@ -285,7 +285,7 @@ buildDepGraph edges =
         (traverse_ processEdges edges)
         (DepGraph Map.empty Map.empty G.empty currentPackage)
   where
-    currentPackage = _decl_package . fst $ NonEmpty.head edges
+    currentPackage = declPackage . fst $ NonEmpty.head edges
 
 
 -- TERMINAL UI STUFF
