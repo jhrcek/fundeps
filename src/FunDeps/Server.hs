@@ -12,6 +12,7 @@ module FunDeps.Server (runServer) where
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as Text
 
 import Data.Aeson (ToJSON)
 import Data.ByteString (ByteString)
@@ -32,11 +33,11 @@ import Servant.Server (Server, serve)
 runServer :: Port -> Map Decl G.Node -> IO ()
 runServer port decls = do
     putStrLn $ "Running on http://localhost:" <> show port
-    run port (app $ toAllDecls decls)
+    run port $ app port (toAllDecls decls)
 
 
-app :: AllDecls -> Application
-app decls = serve (Proxy @FunDepsApi) (funDepsHandlers decls)
+app :: Port -> AllDecls -> Application
+app port decls = serve (Proxy @FunDepsApi) (funDepsHandlers port decls)
 
 
 type FunDepsApi =
@@ -75,22 +76,22 @@ toAllDecls = AllDecls . go
             Map.empty
 
 
-funDepsHandlers :: AllDecls -> Server FunDepsApi
-funDepsHandlers decls =
-    pure indexHtml
+funDepsHandlers :: Port -> AllDecls -> Server FunDepsApi
+funDepsHandlers port decls =
+    pure (indexHtml port)
         :<|> pure elmApp
         :<|> pure decls
 
 
-indexHtml :: Html ()
-indexHtml = do
+indexHtml :: Port -> Html ()
+indexHtml port = do
     doctype_
     html_ [lang_ "en"] $ do
         head_ $ do
             meta_ [charset_ "utf-8"]
             title_ "FunDeps"
             script_ [src_ "main.js"] (mempty :: String)
-        body_ $ script_ "Elm.Main.init()"
+        body_ $ script_ $ "Elm.Main.init({flags: " <> Text.pack (show port) <> "})"
 
 
 elmApp :: ByteString

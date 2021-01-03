@@ -38,7 +38,7 @@ library
         Terminal.Ansi
 
     default-language: Haskell2010
-    ghc-options:      -Wall -fwrite-ide-info
+    ghc-options:      -Wall -fwrite-ide-info -hiedir=hie
     build-depends:
         base >=4.7 && <5,
         aeson,

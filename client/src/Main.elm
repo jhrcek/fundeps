@@ -7,7 +7,7 @@ import Http
 import Json.Decode as JD exposing (Decoder)
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.document
         { init = init
@@ -18,7 +18,15 @@ main =
 
 
 type alias Model =
-    { declarations : DeclTree }
+    { declarations : DeclTree
+    , flags : Flags
+    }
+
+
+{-| For now flags represent just the port number on which backend is running
+-}
+type alias Flags =
+    Int
 
 
 {-| Map from PackageName -> ModuleName -> FunctionName -> Declaration Node Id
@@ -31,10 +39,10 @@ type Msg
     = GotDeclTree (Result Http.Error DeclTree)
 
 
-getDeclTree : Cmd Msg
-getDeclTree =
+getDeclTree : Flags -> Cmd Msg
+getDeclTree portNumber =
     Http.get
-        { url = "http://localhost:3003/declarations"
+        { url = "http://localhost:" ++ String.fromInt portNumber ++ "/declarations"
         , expect = Http.expectJson GotDeclTree declTreeDecoder
         }
 
@@ -51,9 +59,13 @@ viewDeclarationSelector (DeclTree d) =
         |> Html.ul []
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( { declarations = DeclTree Dict.empty }, getDeclTree )
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    ( { declarations = DeclTree Dict.empty
+      , flags = flags
+      }
+    , getDeclTree flags
+    )
 
 
 view : Model -> Document Msg
@@ -72,5 +84,5 @@ update msg model =
                     ( { model | declarations = declTree }, Cmd.none )
 
                 -- TODO deal with error
-                Err httpErr ->
+                Err _ ->
                     ( model, Cmd.none )
