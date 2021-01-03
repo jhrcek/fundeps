@@ -31,6 +31,14 @@ import qualified Terminal.Commands as Cmd
 import Control.Concurrent (forkIO)
 import Control.Monad.Trans.State.Strict (State)
 import Data.Containers.ListUtils (nubOrd)
+import Data.Declaration (
+    Decl (Decl, _decl_module, _decl_package),
+    FunctionName (..),
+    ModuleName (..),
+    NodeFormat (..),
+    PackageName (..),
+    formatNode,
+ )
 import Data.Foldable (for_, traverse_)
 import Data.Graph.Inductive.PatriciaTree (Gr)
 import Data.GraphViz.Attributes (Shape (BoxShape), shape)
@@ -38,9 +46,10 @@ import Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir), Label (Str
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Map.Strict (Map)
 import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Monoid (Endo (..))
 import Data.Set (Set)
-import Settings (DependencyMode (..), NodeFormat (..), Settings (..), defaultSettings)
-import Terminal (Item (..), pickAnItem)
+import Settings (DependencyMode (..), Settings (..), defaultSettings)
+import Terminal (pickAnItem)
 import Terminal.Commands (QueryItem (..))
 import Turtle hiding (f, g, prefix, sortOn)
 import Prelude hiding (FilePath)
@@ -81,10 +90,10 @@ showDfsSubgraph graphAction DepGraph{graph, currentPackage} settings nodeIds = d
 
 runGraphAction :: GraphAction -> Settings -> PackageName -> Graph -> IO ()
 runGraphAction graphAction settings currentPackage graph0 = do
-    let graph1 = excludeExternalPackages settings currentPackage graph0
+    let graph1 = appEndo (excludeExternalPackages settings currentPackage) graph0
         graph2 = GraphViz.graphToDot (gvParams settings) graph1
         graph3 = GraphViz.setStrictness (not $ _allowMultiEdges settings) graph2
-        graph4 = removeTransitiveEdges settings graph3
+        graph4 = appEndo (removeTransitiveEdges settings) graph3
         command = _graphvizCommand settings
         externalNodesExcluded = G.noNodes graph0 - G.noNodes graph1
         edgeCount2 = length $ GvTypes.graphEdges graph2
@@ -130,16 +139,16 @@ executeGraphAction gvCommand graph action = case action of
                 (Turtle.encodeString file)
 
 
-excludeExternalPackages :: Settings -> PackageName -> Graph -> Graph
+excludeExternalPackages :: Settings -> PackageName -> Endo Graph
 excludeExternalPackages settings currentPackage
-    | _includeExternalPackages settings = id
-    | otherwise = G.labfilter ((currentPackage ==) . _decl_package)
+    | _includeExternalPackages settings = mempty
+    | otherwise = Endo $ G.labfilter ((currentPackage ==) . _decl_package)
 
 
-removeTransitiveEdges :: Settings -> GraphViz.DotGraph G.Node -> GraphViz.DotGraph G.Node
+removeTransitiveEdges :: Settings -> Endo (GraphViz.DotGraph G.Node)
 removeTransitiveEdges settings
-    | _transitiveReduction settings = Data.GraphViz.Algorithms.transitiveReduction
-    | otherwise = id
+    | _transitiveReduction settings = Endo Data.GraphViz.Algorithms.transitiveReduction
+    | otherwise = mempty
 
 
 gvParams :: Settings -> GraphViz.GraphvizParams G.Node Decl () ClusterLabel Decl
@@ -171,33 +180,6 @@ data ClusterLabel
     = PackageCluster PackageName
     | ModuleCluster ModuleName
     deriving (Eq, Ord)
-
-
-formatNode :: NodeFormat -> Decl -> Text
-formatNode fmt (Decl p m f) = case fmt of
-    PackageModuleFunction ->
-        Text.unlines $
-            (if Text.null (unPackageName p) then id else (unPackageName p :))
-                [unModuleName m, unFunctionName f]
-    ModuleFunction -> Text.unlines [unModuleName m, unFunctionName f]
-    Function -> unFunctionName f
-
-
-data Decl = Decl
-    { _decl_package :: PackageName
-    , _decl_module :: ModuleName
-    , _decl_function :: FunctionName
-    }
-    deriving (Show, Eq, Ord)
-
-
-newtype PackageName = PackageName {unPackageName :: Text} deriving (Eq, Ord, Show) via Text
-
-
-newtype ModuleName = ModuleName {unModuleName :: Text} deriving (Eq, Ord, Show) via Text
-
-
-newtype FunctionName = FunctionName {unFunctionName :: Text} deriving (Eq, Ord, Show) via Text
 
 
 type Edge = (Decl, Decl)
@@ -257,6 +239,7 @@ data DepGraph = DepGraph
       functionNameToNodes :: Map FunctionName (Set Decl)
     , graph :: Graph
     , -- | to distinguish between this and 3rd party packages
+      -- TODO it's no longer true that there's unique current package
       currentPackage :: PackageName
     }
     deriving (Show)
@@ -353,14 +336,14 @@ lookupItems depGraph =
 lookupFunctionId :: DepGraph -> QueryItem -> LookupResult
 lookupFunctionId (DepGraph decls funs _ _) qi =
     case qi of
-        PkgModFun p m f -> lookupUnique (Decl (PackageName p) (ModuleName m) (FunctionName f))
-        ModFun m f -> lookupUnique (Decl (PackageName "") (ModuleName m) (FunctionName f))
-        Fun fname -> case Map.lookup (FunctionName fname) funs of
-            Nothing -> NotFound fname
+        PkgModFun p m f -> lookupUnique (Decl p m f)
+        ModFun m f -> lookupUnique (Decl (PackageName "") m f)
+        Fun fname -> case Map.lookup fname funs of
+            Nothing -> NotFound $ unFunctionName fname
             Just declSet -> case Set.toList declSet of
-                [] -> error $ "WTF?! Invariant broken: set of declarations with function name '" <> Text.unpack fname <> "'' was empty"
+                [] -> error $ "WTF?! Invariant broken: set of declarations with function name '" <> Text.unpack (unFunctionName fname) <> "'' was empty"
                 [decl] -> case Map.lookup decl decls of
-                    Nothing -> error $ "WTF? Invariant broken: '" <> Text.unpack fname <> "' was in function name map, but not in decl map"
+                    Nothing -> error $ "WTF? Invariant broken: '" <> Text.unpack (unFunctionName fname) <> "' was in function name map, but not in decl map"
                     Just nodeId -> FoundUnique nodeId
                 m : ore -> Ambiguous (m :| ore)
   where
@@ -387,7 +370,3 @@ data LookupResult
     = FoundUnique G.Node
     | NotFound Text
     | Ambiguous (NonEmpty Decl)
-
-
-instance Item Decl where
-    showItem decl = Text.unpack $ formatNode PackageModuleFunction decl

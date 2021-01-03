@@ -3,7 +3,6 @@
 module Settings (
     DependencyMode (..),
     Settings (..),
-    NodeFormat (..),
     clusterByModule,
     clusterByPackage,
     defaultSettings,
@@ -16,16 +15,10 @@ module Settings (
     includeExternalPackages,
 ) where
 
+import Data.Declaration (NodeFormat (Function))
 import Data.GraphViz.Attributes.Complete (RankDir (FromLeft))
 import Data.GraphViz.Commands (GraphvizCommand (Dot))
 import Lens.Micro.TH (makeLenses)
-
-
-data NodeFormat
-    = PackageModuleFunction
-    | ModuleFunction
-    | Function
-    deriving (Eq, Show)
 
 
 data DependencyMode

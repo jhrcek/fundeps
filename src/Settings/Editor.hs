@@ -46,6 +46,9 @@ import Brick.Util (on)
 import Brick.Widgets.Border (border, borderWithLabel)
 import Brick.Widgets.Center (center)
 import Brick.Widgets.Edit (editAttr, editFocusedAttr)
+import Data.Declaration (
+    NodeFormat (Function, ModuleFunction, PackageModuleFunction),
+ )
 import Data.GraphViz.Attributes.Complete (RankDir (..))
 import Data.GraphViz.Commands (GraphvizCommand (Circo, Dot, Neato, TwoPi))
 import Data.Text (Text)
@@ -126,9 +129,9 @@ mkForm =
             , label "Node format"
                 @@= radioField
                     S.nodeFormat
-                    [ (S.PackageModuleFunction, NodeFormatPackageModuleFunctionRadio, "Package:Module:Function")
-                    , (S.ModuleFunction, NodeFormatModuleFunctionRadio, "Module:Function")
-                    , (S.Function, NodeFormatFunctionRadio, "Function")
+                    [ (PackageModuleFunction, NodeFormatPackageModuleFunctionRadio, "Package:Module:Function")
+                    , (ModuleFunction, NodeFormatModuleFunctionRadio, "Module:Function")
+                    , (Function, NodeFormatFunctionRadio, "Function")
                     ]
             , label "Direction of edges"
                 @@= radioField

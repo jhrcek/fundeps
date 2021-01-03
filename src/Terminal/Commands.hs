@@ -20,6 +20,7 @@ import qualified Turtle
 
 import Data.Bifunctor (first)
 import Data.Char (isAlphaNum, isSpace)
+import Data.Declaration (FunctionName (..), ModuleName (..), PackageName (..))
 import Data.Functor (($>))
 import Data.Text (Text)
 import Text.Parsec (parserFail, (<|>))
@@ -53,9 +54,9 @@ data Command
 
 
 data QueryItem
-    = PkgModFun Text Text Text
-    | ModFun Text Text
-    | Fun Text
+    = PkgModFun PackageName ModuleName FunctionName
+    | ModFun ModuleName FunctionName
+    | Fun FunctionName
     deriving (Show, Eq)
 
 
@@ -103,9 +104,9 @@ queryItem =
         <|> (Fun <$> funct)
   where
     sat = fmap Text.pack . P.many1 . P.satisfy
-    pkg = sat $ \c -> isAlphaNum c || c `elem` ['/', '-', '.']
-    modul = sat $ \c -> isAlphaNum c || c == '.' || c == '-'
-    funct = sat $ \c -> isAlphaNum c || c == '_'
+    pkg = fmap PackageName . sat $ \c -> isAlphaNum c || c `elem` ['/', '-', '.']
+    modul = fmap ModuleName . sat $ \c -> isAlphaNum c || c == '.' || c == '-'
+    funct = fmap FunctionName . sat $ \c -> isAlphaNum c || c == '_'
 
 
 symbol :: String -> Parser ()
