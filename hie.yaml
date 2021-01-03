@@ -1,13 +1,13 @@
 cradle:
-  cabal:
-    - path: "src"
-      component: "lib:fundeps"
+  stack:
+    - path: "./src"
+      component: "fundeps:lib"
 
-    - path: "fundeps/Main.hs"
+    - path: "./fundeps/Main.hs"
       component: "fundeps:exe:fundeps"
 
-    - path: "fundeps-hs/Main.hs"
+    - path: "./fundeps-hs/Main.hs"
       component: "fundeps:exe:fundeps-hs"
 
-    - path: "test"
+    - path: "./test"
       component: "fundeps:test:fundeps-test"

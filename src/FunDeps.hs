@@ -78,7 +78,7 @@ parseArgs = do
             _ -> Cli
 
 
-data Args = Args {argsUiMode :: UiMode}
+newtype Args = Args {argsUiMode :: UiMode}
 
 
 data UiMode = Cli | HttpServer Int

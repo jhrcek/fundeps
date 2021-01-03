@@ -38,21 +38,26 @@ library
         Terminal.Ansi
 
     default-language: Haskell2010
-    ghc-options:      -Wall
+    ghc-options:      -Wall -fwrite-ide-info
     build-depends:
         base >=4.7 && <5,
         aeson,
         -- hardcoded brick version based on lts-16.27 to fix travis CI
         brick ==0.52.1,
+        bytestring,
         containers,
         fgl,
+        file-embed,
         foldl,
         graphviz,
         haskeline,
+        http-media,
+        lucid,
         microlens,
         microlens-th,
         parsec,
         servant,
+        servant-lucid,
         servant-server,
         text,
         transformers,
