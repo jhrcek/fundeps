@@ -14,7 +14,7 @@ minifi: client
 
 .PHONY: install
 install: client
-	stack install --pedantic
+	stack install
 
 .PHONY: test
 test:
