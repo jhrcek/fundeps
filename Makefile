@@ -14,7 +14,7 @@ minifi: client
 
 .PHONY: install
 install: client
-	stack install
+	stack install --flag fundeps:WithJS
 
 .PHONY: test
 test:

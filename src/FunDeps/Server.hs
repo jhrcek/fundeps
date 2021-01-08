@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE InstanceSigs #-}
@@ -95,8 +96,11 @@ indexHtml port = do
 
 
 elmApp :: ByteString
+#ifdef WithJS
 elmApp = $(embedFile "client/dist/main.js")
-
+#else
+elmApp = ""
+#endif
 
 data JS
 

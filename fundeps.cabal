@@ -6,7 +6,6 @@ license-file:       LICENSE
 copyright:          2020 Jan Hrček
 maintainer:         honza.hrk@gmail.com
 author:             Jan Hrček
-tested-with:        ghc ==8.8.4
 homepage:           https://github.com/jhrcek/fundeps#readme
 synopsis:
     An experimental CLI tool for visualization of elm declaration dependencies.
@@ -18,13 +17,20 @@ description:
 category:           Web
 build-type:         Simple
 extra-source-files: README.md
-tested-with: GHC ==8.10.3 || ==8.8.4
+tested-with: GHC ==8.10.3
 
 source-repository head
     type:     git
     location: git@github.com/jhrcek/fundeps.git
 
+Flag WithJS
+  Description: Embed main.js file when building
+  Default:     False
+  Manual:      True
+
 library
+    if flag(WithJS)
+        cpp-options: -DWithJS
     exposed-modules:
         Data.Declaration
         FunDeps
