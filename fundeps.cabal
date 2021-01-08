@@ -42,8 +42,7 @@ library
     build-depends:
         base >=4.7 && <5,
         aeson,
-        -- hardcoded brick version based on lts-16.27 to fix travis CI
-        brick ==0.52.1,
+        brick,
         bytestring,
         containers,
         fgl,
