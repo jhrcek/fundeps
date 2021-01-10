@@ -22,7 +22,7 @@ data Decl = Decl
     , declModule :: ModuleName
     , declFunction :: FunctionName
     }
-    deriving (Show, Eq, Ord)
+    deriving stock (Show, Eq, Ord)
 
 
 instance Item Decl where
@@ -43,7 +43,7 @@ data NodeFormat
     = PackageModuleFunction
     | ModuleFunction
     | Function
-    deriving (Eq, Show)
+    deriving stock (Eq, Show)
 
 
 newtype PackageName = PackageName {unPackageName :: Text}

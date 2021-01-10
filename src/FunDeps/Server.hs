@@ -18,7 +18,6 @@ import qualified Data.Text as Text
 import Data.Aeson (ToJSON)
 import Data.ByteString (ByteString)
 import Data.Declaration (Decl (..), FunctionName, ModuleName, PackageName)
-import Data.FileEmbed (embedFile)
 import Data.Map.Strict (Map)
 import Data.Proxy (Proxy (..))
 import Lucid (Html, body_, charset_, doctype_, head_, html_, lang_, meta_, script_, src_, title_)
@@ -28,8 +27,17 @@ import Network.Wai.Handler.Warp (Port, run)
 import Servant.API (Get, type (:<|>) (..), type (:>))
 import Servant.API.ContentTypes (Accept (contentType), JSON, MimeRender (..))
 import Servant.HTML.Lucid (HTML)
-import Servant.Server (Server, serve)
+import Servant.Server (Handler, Server, serve)
 
+
+#ifdef WithJS
+import Data.FileEmbed (embedFile)
+elmApp = pure $(embedFile "client/dist/main.js")
+#else
+import Control.Monad.IO.Class (MonadIO (liftIO))
+import qualified Data.ByteString (readFile)
+elmApp = liftIO $ Data.ByteString.readFile "/home/jhrcek/Devel/github.com/jhrcek/fundeps/client/dist/main.js"
+#endif
 
 runServer :: Port -> Map Decl G.Node -> IO ()
 runServer port decls = do
@@ -80,7 +88,7 @@ toAllDecls = AllDecls . go
 funDepsHandlers :: Port -> AllDecls -> Server FunDepsApi
 funDepsHandlers port decls =
     pure (indexHtml port)
-        :<|> pure elmApp
+        :<|> elmApp
         :<|> pure decls
 
 
@@ -95,12 +103,8 @@ indexHtml port = do
         body_ $ script_ $ "Elm.Main.init({flags: " <> Text.pack (show port) <> "})"
 
 
-elmApp :: ByteString
-#ifdef WithJS
-elmApp = $(embedFile "client/dist/main.js")
-#else
-elmApp = ""
-#endif
+elmApp :: Handler ByteString
+
 
 data JS
 

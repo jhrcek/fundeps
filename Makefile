@@ -19,3 +19,7 @@ install: client
 .PHONY: test
 test:
 	stack test
+
+.PHONY: elm-live
+elm-live:
+	cd client && elm-live src/Main.elm -- --output=$(script)

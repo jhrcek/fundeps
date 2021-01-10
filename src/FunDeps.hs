@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -210,7 +211,7 @@ gvParams settings =
 data ClusterLabel
     = PackageCluster PackageName
     | ModuleCluster ModuleName
-    deriving (Eq, Ord)
+    deriving stock (Eq, Ord)
 
 
 type Edge = (Decl, Decl)
@@ -273,7 +274,7 @@ data DepGraph = DepGraph
       -- TODO when loading stuff from multi-package hs project there might not be a single "current" package
       currentPackage :: PackageName
     }
-    deriving (Show)
+    deriving stock (Show)
 
 
 type Graph = Gr Decl ()

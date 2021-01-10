@@ -1,7 +1,8 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 
-module Settings.Editor where
+module Settings.Editor (editSettings) where
 
 import qualified Graphics.Vty as V
 import qualified Settings as S
@@ -97,7 +98,7 @@ data Name
     | RankdirFromTopRadio
     | RankdirFromBottomRadio
     | SaveButton
-    deriving (Eq, Ord, Show)
+    deriving stock (Eq, Ord, Show)
 
 
 mkForm :: Settings -> FormState
@@ -188,7 +189,3 @@ editSettings settings = do
         form0 = mkForm settings
     initialVty <- buildVty
     formState <$> customMain initialVty buildVty Nothing app form0
-
-
-main :: IO ()
-main = editSettings S.defaultSettings >>= print

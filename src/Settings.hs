@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Settings (
@@ -24,7 +25,7 @@ import Lens.Micro.TH (makeLenses)
 data DependencyMode
     = Callees
     | Callers
-    deriving (Eq, Show)
+    deriving stock (Eq, Show)
 
 
 data Settings = Settings
@@ -38,7 +39,7 @@ data Settings = Settings
     , _rankDir :: RankDir
     , _transitiveReduction :: Bool
     }
-    deriving (Show)
+    deriving stock (Show)
 
 
 makeLenses ''Settings

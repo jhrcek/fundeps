@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Terminal.Commands (
@@ -33,7 +34,8 @@ typeHelp :: Text
 typeHelp = "Type :help to get a list of available commands"
 
 
-newtype CommandParseError = CommandParseError Text deriving (Show, Eq)
+newtype CommandParseError = CommandParseError Text
+    deriving stock (Show, Eq)
 
 
 parseCommand :: Text -> Either CommandParseError Command
@@ -50,14 +52,14 @@ data Command
     | EditSettings
     | NoOp
     | Quit
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
 
 data QueryItem
     = PkgModFun PackageName ModuleName FunctionName
     | ModFun ModuleName FunctionName
     | Fun FunctionName
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
 
 commandParser :: Parser Command

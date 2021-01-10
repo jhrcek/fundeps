@@ -40,7 +40,7 @@ appDraw l = [C.center box]
             $ L.renderList listDrawElement True l
 
 
-appHandleEvent :: Item a => Model a -> T.BrickEvent () Void -> T.EventM () (T.Next (Model a))
+appHandleEvent :: Model a -> T.BrickEvent () Void -> T.EventM () (T.Next (Model a))
 appHandleEvent l (T.VtyEvent e) =
     case e of
         V.EvKey V.KEnter [] ->
@@ -58,7 +58,7 @@ listDrawElement isSelected
     | otherwise = str . showItem
 
 
-initList :: Item a => [a] -> Model a
+initList :: [a] -> Model a
 initList items = L.list () (Vec.fromList items) 0
 
 
