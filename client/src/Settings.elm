@@ -1,4 +1,4 @@
-module Settings exposing (Msg, Settings, init, update, view)
+module Settings exposing (Msg, Settings, encode, init, update, view)
 
 import Html exposing (Html)
 import Html.Attributes as Attr
@@ -153,8 +153,8 @@ type NodeFormat
     | Function
 
 
-encodeSettings : Settings -> Value
-encodeSettings s =
+encode : Settings -> Value
+encode s =
     Encode.object
         [ ( "allowMultiEdges", Encode.bool s.allowMultiEdges )
         , ( "dependencyMode", encodeDependencyMode s.dependencyMode )

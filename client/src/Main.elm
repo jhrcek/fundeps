@@ -2,9 +2,11 @@ module Main exposing (main)
 
 import Browser exposing (Document)
 import Html exposing (Html)
+import Html.Attributes as Attr
+import Html.Events as Event
 import Http
+import Json.Encode as Encode
 import PackageForest exposing (..)
-import Set exposing (Set)
 import Settings exposing (Settings)
 
 
@@ -21,13 +23,14 @@ main =
 type alias Model =
     { packageForest : PackageForest
     , settings : Settings
-    , selectedNodes : Set NodeId
     , flags : Flags
+    , graphImageSrc : Maybe String
     }
 
 
 type Msg
     = GotPackageForest (Result Http.Error PackageForest)
+    | GotGraphImageUrl (Result Http.Error String)
     | PackageForestMsg PackageForest.Msg
     | SettingsMsg Settings.Msg
     | GraphRequested
@@ -44,7 +47,7 @@ init flags =
     ( { packageForest = PackageForest.empty
       , settings = Settings.init
       , flags = flags
-      , selectedNodes = Set.empty
+      , graphImageSrc = Nothing
       }
     , getPackageForest flags
     )
@@ -55,6 +58,20 @@ getPackageForest portNumber =
     Http.get
         { url = "http://localhost:" ++ String.fromInt portNumber ++ "/declarations"
         , expect = Http.expectJson GotPackageForest packageForestDecoder
+        }
+
+
+renderGraph : Flags -> Settings -> PackageForest -> Cmd Msg
+renderGraph portNumber settings packageForest =
+    Http.post
+        { url = "http://localhost:" ++ String.fromInt portNumber ++ "/render-graph"
+        , body =
+            Http.jsonBody <|
+                Encode.object
+                    [ ( "settings", Settings.encode settings )
+                    , ( "nodes", Encode.list Encode.int <| PackageForest.selectedNodes packageForest )
+                    ]
+        , expect = Http.expectString GotGraphImageUrl
         }
 
 
@@ -69,6 +86,10 @@ viewBody : Model -> List (Html Msg)
 viewBody model =
     [ Html.map SettingsMsg <| Settings.view model.settings
     , Html.map PackageForestMsg <| PackageForest.view model.packageForest
+    , Html.button [ Event.onClick GraphRequested ] [ Html.text "Render Graph" ]
+    , model.graphImageSrc
+        |> Maybe.map (\imgSrc -> Html.img [ Attr.alt "Dependency Graph", Attr.src imgSrc ] [])
+        |> Maybe.withDefault (Html.text "Graph Not Rendered yet")
     ]
 
 
@@ -86,6 +107,15 @@ update msg model =
                 Err _ ->
                     ( model, Cmd.none )
 
+        GotGraphImageUrl result ->
+            case result of
+                Ok imageUrl ->
+                    ( { model | graphImageSrc = Just imageUrl }, Cmd.none )
+
+                -- TODO deal with error
+                Err _ ->
+                    ( model, Cmd.none )
+
         PackageForestMsg pfMsg ->
             let
                 ( newPackageForest, pfCmd ) =
@@ -97,4 +127,4 @@ update msg model =
             ( { model | settings = Settings.update sMsg model.settings }, Cmd.none )
 
         GraphRequested ->
-            ( model, Cmd.none )
+            ( model, renderGraph model.flags model.settings model.packageForest )

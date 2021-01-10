@@ -4,6 +4,7 @@ module PackageForest exposing
     , PackageForest
     , empty
     , packageForestDecoder
+    , selectedNodes
     , update
     , view
     )
@@ -301,6 +302,27 @@ toggleModuleExpansion pkg mod =
                             p.modules
                 }
             )
+
+
+selectedNodes : PackageForest -> List NodeId
+selectedNodes (PackageForest pf) =
+    List.concatMap
+        (\p ->
+            List.concatMap
+                (\m ->
+                    List.filterMap
+                        (\f ->
+                            if f.isSelected then
+                                Just f.nodeId
+
+                            else
+                                Nothing
+                        )
+                        m.functions
+                )
+                p.modules
+        )
+        pf
 
 
 viewPackageForest : PackageForest -> Html Msg
