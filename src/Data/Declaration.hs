@@ -12,9 +12,10 @@ module Data.Declaration (
 
 import qualified Data.Text as Text
 
-import Data.Aeson (ToJSON, ToJSONKey)
-import Data.Text (Text)
+import Data.Aeson (FromJSON (parseJSON), ToJSON, ToJSONKey, withText)
+import Data.Text (Text, unpack)
 import Terminal (Item (showItem))
+import Text.Read (readMaybe)
 
 
 data Decl = Decl
@@ -43,7 +44,13 @@ data NodeFormat
     = PackageModuleFunction
     | ModuleFunction
     | Function
-    deriving stock (Eq, Show)
+    deriving stock (Eq, Show, Read)
+
+
+instance FromJSON NodeFormat where
+    parseJSON = withText "NodeFormat" $ \t -> case readMaybe (unpack t) of
+        Just nodeFormat -> pure nodeFormat
+        Nothing -> fail $ unpack $ "Unsupported NodeFormat: " <> t
 
 
 newtype PackageName = PackageName {unPackageName :: Text}

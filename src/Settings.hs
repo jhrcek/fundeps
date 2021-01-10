@@ -1,5 +1,8 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Settings (
     DependencyMode (..),
@@ -16,16 +19,26 @@ module Settings (
     includeExternalPackages,
 ) where
 
+import Data.Aeson (FromJSON (parseJSON), withObject, withText, (.:))
 import Data.Declaration (NodeFormat (Function))
 import Data.GraphViz.Attributes.Complete (RankDir (FromLeft))
 import Data.GraphViz.Commands (GraphvizCommand (Dot))
+import Data.Text (unpack)
 import Lens.Micro.TH (makeLenses)
+import Text.Read (readMaybe)
 
 
 data DependencyMode
     = Callees
     | Callers
     deriving stock (Eq, Show)
+
+
+instance FromJSON DependencyMode where
+    parseJSON = withText "DependencyMode" $ \t -> case t of
+        "Callees" -> pure Callees
+        "Callers" -> pure Callers
+        _ -> fail $ unpack $ "Unsupported DependencyMode: " <> t
 
 
 data Settings = Settings
@@ -40,6 +53,32 @@ data Settings = Settings
     , _transitiveReduction :: Bool
     }
     deriving stock (Show)
+
+
+instance FromJSON Settings where
+    parseJSON = withObject "Settings" $ \o ->
+        Settings
+            <$> o .: "allowMultiEdges"
+            <*> o .: "clusterByModule"
+            <*> o .: "clusterByPackage"
+            <*> o .: "dependencyMode"
+            <*> o .: "graphvizCommand"
+            <*> o .: "includeExternalPackages"
+            <*> o .: "nodeFormat"
+            <*> o .: "rankDir"
+            <*> o .: "transitiveReduction"
+
+
+instance FromJSON GraphvizCommand where
+    parseJSON = withText "GraphvizCommand" $ \t -> case readMaybe (unpack t) of
+        Just graphvizCommand -> pure graphvizCommand
+        Nothing -> fail $ unpack $ "Unsupported GraphvizCommand: " <> t
+
+
+instance FromJSON RankDir where
+    parseJSON = withText "RankDir" $ \t -> case readMaybe (unpack t) of
+        Just rankDir -> pure rankDir
+        Nothing -> fail $ unpack $ "Unsupported RankDir: " <> t
 
 
 makeLenses ''Settings

@@ -39,6 +39,7 @@ type Msg
     | FunctionSelectionToggled PackageName ModuleName FunctionName
     | PackageExpansionToggled PackageName
     | ModuleExpansionToggled PackageName ModuleName
+    | GraphRequested
 
 
 type alias PackageForest =
@@ -443,3 +444,6 @@ update msg model =
 
         ModuleExpansionToggled packageName moduleName ->
             ( { model | declTree = toggleModuleExpansion packageName moduleName model.declTree }, Cmd.none )
+
+        GraphRequested ->
+            ( model, Cmd.none )

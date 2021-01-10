@@ -14,7 +14,7 @@ minifi: client
 
 .PHONY: install
 install: client
-	stack install --flag fundeps:WithJS
+	stack install --ghc-options="-O2" --flag fundeps:WithJS
 
 .PHONY: test
 test:

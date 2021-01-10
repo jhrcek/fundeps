@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -15,19 +16,21 @@ import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 
-import Data.Aeson (ToJSON)
+import Data.Aeson (FromJSON, ToJSON, parseJSON, withObject, (.:))
 import Data.ByteString (ByteString)
 import Data.Declaration (Decl (..), FunctionName, ModuleName, PackageName)
 import Data.Map.Strict (Map)
 import Data.Proxy (Proxy (..))
+import Data.Text (Text)
 import Lucid (Html, body_, charset_, doctype_, head_, html_, lang_, meta_, script_, src_, title_)
 import Network.HTTP.Media (MediaType, (//))
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (Port, run)
-import Servant.API (Get, type (:<|>) (..), type (:>))
+import Servant.API (Get, Post, ReqBody, type (:<|>) (..), type (:>))
 import Servant.API.ContentTypes (Accept (contentType), JSON, MimeRender (..))
 import Servant.HTML.Lucid (HTML)
 import Servant.Server (Handler, Server, serve)
+import Settings (Settings)
 
 
 #ifdef WithJS
@@ -36,6 +39,7 @@ elmApp = pure $(embedFile "client/dist/main.js")
 #else
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import qualified Data.ByteString (readFile)
+
 elmApp = liftIO $ Data.ByteString.readFile "/home/jhrcek/Devel/github.com/jhrcek/fundeps/client/dist/main.js"
 #endif
 
@@ -53,6 +57,20 @@ type FunDepsApi =
     Get '[HTML] (Html ()) -- index.html
         :<|> "main.js" :> Get '[JS] ByteString
         :<|> "declarations" :> Get '[JSON] AllDecls
+        :<|> "render-graph" :> ReqBody '[JSON] RenderGraphRequest :> Post '[JSON] Text
+
+
+data RenderGraphRequest = RenderGraphRequest
+    { rgrSettings :: Settings
+    , rgrNodes :: [G.Node]
+    }
+
+
+instance FromJSON RenderGraphRequest where
+    parseJSON = withObject "RenderGraphRequest" $ \o ->
+        RenderGraphRequest
+            <$> o .: "settings"
+            <*> o .: "nodes"
 
 
 type DeclMap = Map PackageName (Map ModuleName (Map FunctionName G.Node))
@@ -90,6 +108,12 @@ funDepsHandlers port decls =
     pure (indexHtml port)
         :<|> elmApp
         :<|> pure decls
+        :<|> renderGraphHandler
+
+
+renderGraphHandler :: RenderGraphRequest -> Handler Text
+renderGraphHandler RenderGraphRequest{rgrSettings, rgrNodes} =
+    pure $ Text.pack $ show rgrSettings <> show rgrNodes
 
 
 indexHtml :: Port -> Html ()
