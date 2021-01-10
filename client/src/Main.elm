@@ -32,9 +32,13 @@ type Msg
     = GotDeclTree (Result Http.Error DeclTree)
     | AllSelected
     | AllUnselected
-    | PackageToggled PackageName
-    | ModuleToggled PackageName ModuleName
-    | FunctionToggled PackageName ModuleName FunctionName
+    | AllExpanded
+    | AllCollapsed
+    | PackageSelectionToggled PackageName
+    | ModuleSelectionToggled PackageName ModuleName
+    | FunctionSelectionToggled PackageName ModuleName FunctionName
+    | PackageExpansionToggled PackageName
+    | ModuleExpansionToggled PackageName ModuleName
 
 
 type alias PackageForest =
@@ -44,6 +48,7 @@ type alias PackageForest =
 
 type alias PackageTree =
     { package : PackageName
+    , expanded : Bool
     , nodeCountTotal : Int
     , nodeCountSelected : Int -- mutable
     , modules : List ModuleTree
@@ -52,6 +57,7 @@ type alias PackageTree =
 
 type alias ModuleTree =
     { module_ : ModuleName
+    , expanded : Bool
     , nodeCountTotal : Int
     , nodeCountSelected : Int -- mutable
     , functions :
@@ -176,6 +182,45 @@ countSelectedInModules =
     List.sum << List.map .nodeCountSelected
 
 
+expandAll : PackageForest -> PackageForest
+expandAll =
+    setExpansionEverywhere True
+
+
+collapseAll : PackageForest -> PackageForest
+collapseAll =
+    setExpansionEverywhere False
+
+
+setExpansionEverywhere : Bool -> PackageForest -> PackageForest
+setExpansionEverywhere b =
+    List.map
+        (\p ->
+            { p
+                | expanded = b
+                , modules = List.map (\m -> { m | expanded = b }) p.modules
+            }
+        )
+
+
+togglePackageExpansion : PackageName -> PackageForest -> PackageForest
+togglePackageExpansion pkg =
+    List.updateIf (\p -> p.package == pkg) (\p -> { p | expanded = not p.expanded })
+
+
+toggleModuleExpansion : PackageName -> ModuleName -> PackageForest -> PackageForest
+toggleModuleExpansion pkg mod =
+    List.updateIf (\p -> p.package == pkg)
+        (\p ->
+            { p
+                | modules =
+                    List.updateIf (\m -> m.module_ == mod)
+                        (\m -> { m | expanded = not m.expanded })
+                        p.modules
+            }
+        )
+
+
 buildDeclTree : Dict PackageName (Dict ModuleName (Dict FunctionName NodeId)) -> PackageForest
 buildDeclTree =
     Dict.foldl
@@ -201,6 +246,7 @@ buildDeclTree =
                             in
                             ( pkgNodeCntAcc + nodeCountInModule
                             , { module_ = module_
+                              , expanded = False
                               , nodeCountTotal = nodeCountInModule
                               , nodeCountSelected = nodeCountInModule -- initially everything's selected
                               , functions = functions
@@ -212,6 +258,7 @@ buildDeclTree =
                         modDict
             in
             { package = package
+            , expanded = False
             , nodeCountTotal = nodeCountTotal
             , nodeCountSelected = nodeCountTotal -- initially everything's selected
             , modules = modules
@@ -275,40 +322,64 @@ declTreeDecoder =
 viewDeclarationSelector : PackageForest -> Html Msg
 viewDeclarationSelector declTree2 =
     let
-        ulist =
+        unorderedList =
             Html.ul [ Attr.style "list-style-type" "none" ]
     in
     Html.div []
-        [ ulist <|
+        [ unorderedList <|
             List.map
                 (\p ->
                     Html.li []
-                        [ Html.label [ Event.onClick (PackageToggled p.package) ]
+                        [ Html.label [ Event.onClick (PackageSelectionToggled p.package) ]
                             [ Html.input [ Attr.type_ "checkbox", Attr.checked (p.nodeCountTotal == p.nodeCountSelected) ] []
-                            , Html.text <| p.package ++ " (" ++ String.fromInt p.nodeCountSelected ++ "/" ++ String.fromInt p.nodeCountTotal ++ ")"
+                            , Html.text <| p.package ++ " (" ++ String.fromInt p.nodeCountSelected ++ "/" ++ String.fromInt p.nodeCountTotal ++ ") "
+                            , Html.span [ Event.onClick (PackageExpansionToggled p.package) ]
+                                [ Html.text <|
+                                    if p.expanded then
+                                        "⊟"
+
+                                    else
+                                        "⊞"
+                                ]
                             ]
-                        , ulist <|
-                            List.map
-                                (\m ->
-                                    Html.li []
-                                        [ Html.label [ Event.onClick (ModuleToggled p.package m.module_) ]
-                                            [ Html.input [ Attr.type_ "checkbox", Attr.checked (m.nodeCountTotal == m.nodeCountSelected) ] []
-                                            , Html.text m.module_
+                        , if p.expanded then
+                            unorderedList <|
+                                List.map
+                                    (\m ->
+                                        Html.li []
+                                            [ Html.label [ Event.onClick (ModuleSelectionToggled p.package m.module_) ]
+                                                [ Html.input [ Attr.type_ "checkbox", Attr.checked (m.nodeCountTotal == m.nodeCountSelected) ] []
+                                                , Html.text m.module_
+                                                , Html.span [ Event.onClick (ModuleExpansionToggled p.package m.module_) ]
+                                                    [ Html.text <|
+                                                        if m.expanded then
+                                                            "⊟"
+
+                                                        else
+                                                            "⊞"
+                                                    ]
+                                                ]
+                                            , if m.expanded then
+                                                unorderedList <|
+                                                    List.map
+                                                        (\f ->
+                                                            Html.li []
+                                                                [ Html.label [ Event.onClick (FunctionSelectionToggled p.package m.module_ f.function) ]
+                                                                    [ Html.input [ Attr.type_ "checkbox", Attr.checked f.isSelected ] []
+                                                                    , Html.text f.function
+                                                                    ]
+                                                                ]
+                                                        )
+                                                        m.functions
+
+                                              else
+                                                Html.text ""
                                             ]
-                                        , ulist <|
-                                            List.map
-                                                (\f ->
-                                                    Html.li []
-                                                        [ Html.label [ Event.onClick (FunctionToggled p.package m.module_ f.function) ]
-                                                            [ Html.input [ Attr.type_ "checkbox", Attr.checked f.isSelected ] []
-                                                            , Html.text f.function
-                                                            ]
-                                                        ]
-                                                )
-                                                m.functions
-                                        ]
-                                )
-                                p.modules
+                                    )
+                                    p.modules
+
+                          else
+                            Html.text ""
                         ]
                 )
                 declTree2
@@ -326,6 +397,8 @@ viewBody : Model -> List (Html Msg)
 viewBody model =
     [ Html.button [ Event.onClick AllSelected ] [ Html.text "Select All" ]
     , Html.button [ Event.onClick AllUnselected ] [ Html.text "Unselect All" ]
+    , Html.button [ Event.onClick AllExpanded ] [ Html.text "Expand All" ]
+    , Html.button [ Event.onClick AllCollapsed ] [ Html.text "Collapse All" ]
     , viewDeclarationSelector model.declTree
     ]
 
@@ -350,11 +423,23 @@ update msg model =
         AllUnselected ->
             ( { model | declTree = unselectAll model.declTree }, Cmd.none )
 
-        PackageToggled packageName ->
+        PackageSelectionToggled packageName ->
             ( { model | declTree = toggleAllInPackage packageName model.declTree }, Cmd.none )
 
-        ModuleToggled packageName moduleName ->
+        ModuleSelectionToggled packageName moduleName ->
             ( { model | declTree = toggleAllInModule packageName moduleName model.declTree }, Cmd.none )
 
-        FunctionToggled packageName moduleName functionName ->
+        FunctionSelectionToggled packageName moduleName functionName ->
             ( { model | declTree = toggleFunction packageName moduleName functionName model.declTree }, Cmd.none )
+
+        AllExpanded ->
+            ( { model | declTree = expandAll model.declTree }, Cmd.none )
+
+        AllCollapsed ->
+            ( { model | declTree = collapseAll model.declTree }, Cmd.none )
+
+        PackageExpansionToggled packageName ->
+            ( { model | declTree = togglePackageExpansion packageName model.declTree }, Cmd.none )
+
+        ModuleExpansionToggled packageName moduleName ->
+            ( { model | declTree = toggleModuleExpansion packageName moduleName model.declTree }, Cmd.none )

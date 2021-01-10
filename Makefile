@@ -22,4 +22,4 @@ test:
 
 .PHONY: elm-live
 elm-live:
-	cd client && elm-live src/Main.elm -- --output=$(script)
+	cd client && elm-live src/Main.elm -- --debug --output=$(script)
