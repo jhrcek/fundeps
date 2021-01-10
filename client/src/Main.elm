@@ -5,6 +5,7 @@ import Html exposing (Html)
 import Http
 import PackageForest exposing (..)
 import Set exposing (Set)
+import Settings exposing (Settings)
 
 
 main : Program Flags Model Msg
@@ -19,6 +20,7 @@ main =
 
 type alias Model =
     { packageForest : PackageForest
+    , settings : Settings
     , selectedNodes : Set NodeId
     , flags : Flags
     }
@@ -27,6 +29,7 @@ type alias Model =
 type Msg
     = GotPackageForest (Result Http.Error PackageForest)
     | PackageForestMsg PackageForest.Msg
+    | SettingsMsg Settings.Msg
     | GraphRequested
 
 
@@ -39,6 +42,7 @@ type alias Flags =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { packageForest = PackageForest.empty
+      , settings = Settings.init
       , flags = flags
       , selectedNodes = Set.empty
       }
@@ -63,7 +67,9 @@ view model =
 
 viewBody : Model -> List (Html Msg)
 viewBody model =
-    [ Html.map PackageForestMsg <| PackageForest.view model.packageForest ]
+    [ Html.map SettingsMsg <| Settings.view model.settings
+    , Html.map PackageForestMsg <| PackageForest.view model.packageForest
+    ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -86,6 +92,9 @@ update msg model =
                     PackageForest.update pfMsg model.packageForest
             in
             ( { model | packageForest = newPackageForest }, Cmd.map PackageForestMsg pfCmd )
+
+        SettingsMsg sMsg ->
+            ( { model | settings = Settings.update sMsg model.settings }, Cmd.none )
 
         GraphRequested ->
             ( model, Cmd.none )
