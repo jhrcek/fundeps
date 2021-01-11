@@ -10,7 +10,6 @@ module FunDeps (
 
 import qualified Control.Foldl as Fold
 import qualified Control.Monad.Trans.State.Strict as State
-import qualified Data.Graph.Inductive.Basic as GB
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Graph.Inductive.Query.DFS as DFS
 import qualified Data.GraphViz as GV
@@ -85,13 +84,19 @@ newtype Args = Args {argsUiMode :: UiMode}
 data UiMode = Cli | HttpServer Int
 
 
+selectNodes :: DependencyMode -> [G.Node] -> Graph -> [G.Node]
+selectNodes dependencyMode startNodes graph =
+    case dependencyMode of
+        Callees -> DFS.dfs startNodes graph
+        Callers -> DFS.rdfs startNodes graph
+        Exact -> startNodes
+
+
+-- TODO rename this as it's not always doing DFS
 showDfsSubgraph :: GraphAction -> DepGraph -> Settings -> [G.Node] -> IO ()
 showDfsSubgraph graphAction DepGraph{graph, currentPackage} settings nodeIds = do
-    let reachableNodeIds = DFS.dfs nodeIds $
-            case _dependencyMode settings of
-                Callees -> graph
-                Callers -> GB.grev graph
-        subGraph = G.subgraph reachableNodeIds graph
+    let selectedNodes = selectNodes (_dependencyMode settings) nodeIds graph
+        subGraph = G.subgraph selectedNodes graph
     -- Warn about search nodes being excluded due to being from external packages
     unless (_includeExternalPackages settings) $ do
         let excludedDecls =

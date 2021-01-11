@@ -31,6 +31,7 @@ import Text.Read (readMaybe)
 data DependencyMode
     = Callees
     | Callers
+    | Exact
     deriving stock (Eq, Show)
 
 
@@ -38,6 +39,7 @@ instance FromJSON DependencyMode where
     parseJSON = withText "DependencyMode" $ \t -> case t of
         "Callees" -> pure Callees
         "Callers" -> pure Callers
+        "Exact" -> pure Exact
         _ -> fail $ unpack $ "Unsupported DependencyMode: " <> t
 
 

@@ -39,7 +39,7 @@ view s =
         , checkbox ClusterByPackageToggled s.clusterByPackage "Cluster by package"
         , checkbox IncludeExternalPackagesToggled s.includeExternalPackages "Include external packages"
         , checkbox TransitiveReductionToggled s.transitiveReduction "Transitive reduction"
-        , radios "Dependency Mode " "dm" DependencyModeSelected showDependencyMode s.dependencyMode [ Callers, Callees ]
+        , radios "Dependency Mode " "dm" DependencyModeSelected showDependencyMode s.dependencyMode [ Callers, Callees, Exact ]
         , radios "Graphviz Command" "gc" GraphvizCommandSelected showGraphvizCommand s.graphvizCommand [ Dot, Neato, TwoPi, Circo, Fdp, Sfdp, Osage, Patchwork ]
         , radios "Node Format" "nf" NodeFormatSelected showNodeFormat s.nodeFormat [ PackageModuleFunction, ModuleFunction, Function ]
         , radios "Rank Direction" "rd" RankDirSelected showRankDir s.rankDir [ FromTop, FromLeft, FromBottom, FromRight ]
@@ -145,6 +145,7 @@ type GraphvizCommand
 type DependencyMode
     = Callees
     | Callers
+    | Exact
 
 
 type NodeFormat
@@ -212,6 +213,9 @@ showDependencyMode dm =
 
         Callers ->
             "Callers"
+
+        Exact ->
+            "Exact"
 
 
 showGraphvizCommand : GraphvizCommand -> String
