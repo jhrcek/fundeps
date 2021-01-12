@@ -8,116 +8,109 @@ maintainer:         honza.hrk@gmail.com
 author:             Jan Hrček
 homepage:           https://github.com/jhrcek/fundeps#readme
 synopsis:
-    An experimental CLI tool for visualization of elm declaration dependencies.
+  An experimental CLI tool for visualization of elm declaration dependencies.
 
 description:
-    An experimental CLI tool which parses source files in an elm projects and offers
-    REPL-like UI for displaying declaration dependency graphs using graphviz library.
+  An experimental CLI tool which parses source files in an elm projects and offers
+  REPL-like UI for displaying declaration dependency graphs using graphviz library.
 
 category:           Web
 build-type:         Simple
 extra-source-files: README.md
-tested-with: GHC ==8.10.3
+tested-with:        GHC ==8.10.3
 
 source-repository head
-    type:     git
-    location: git@github.com/jhrcek/fundeps.git
+  type:     git
+  location: git@github.com/jhrcek/fundeps.git
 
-Flag WithJS
-  Description: Embed main.js file when building
-  Default:     False
-  Manual:      True
+flag WithJS
+  description: Embed main.js file when building
+  default:     False
+  manual:      True
 
 common common-options
-    build-depends: base >=4.7 && <5
-    default-language: Haskell2010
-    ghc-options:         
-        -fwrite-ide-info
-        -hiedir=hie
-        -Wall
-        -Wcompat
-        -Widentities
-        -Wincomplete-record-updates
-        -Wincomplete-uni-patterns
-        -Wmissing-deriving-strategies
-        -Wmissing-export-lists
-        -Wno-unrecognised-pragmas
-        -Wpartial-fields
-        -Wredundant-constraints
-        -Wunused-packages
+  build-depends:    base >=4.7 && <5
+  default-language: Haskell2010
+  ghc-options:
+    -fwrite-ide-info -hiedir=hie -Wall -Wcompat -Widentities
+    -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wmissing-deriving-strategies -Wmissing-export-lists
+    -Wno-unrecognised-pragmas -Wpartial-fields -Wredundant-constraints
+    -Wunused-packages
 
 library
-    import: common-options
-    if flag(WithJS)
-        cpp-options: -DWithJS
-    exposed-modules:
-        Data.Declaration
-        FunDeps
-        Terminal.Commands
+  import:          common-options
 
-    hs-source-dirs:   src
-    other-modules:
-        FunDeps.Server
-        Settings
-        Settings.Editor
-        Terminal
-        Terminal.Ansi
-    if flag(WithJS)
-        build-depends:
-            file-embed
-    build-depends:
-        base >=4.7 && <5,
-        aeson,
-        brick,
-        bytestring,
-        containers,
-        fgl,
-        foldl,
-        graphviz,
-        haskeline,
-        http-media,
-        lucid,
-        microlens,
-        microlens-th,
-        parsec,
-        servant,
-        servant-lucid,
-        servant-server,
-        text,
-        transformers,
-        turtle,
-        vector,
-        vty,
-        wai,
-        warp
-    
+  if flag(withjs)
+    cpp-options: -DWithJS
+
+  exposed-modules:
+    Data.Declaration
+    FunDeps
+    Terminal.Commands
+
+  hs-source-dirs:  src
+  other-modules:
+    FunDeps.Server
+    Settings
+    Settings.Editor
+    Terminal
+    Terminal.Ansi
+
+  if flag(withjs)
+    build-depends: file-embed
+
+  build-depends:
+    , aeson
+    , base            >=4.7 && <5
+    , brick
+    , bytestring
+    , containers
+    , fgl
+    , foldl
+    , graphviz
+    , haskeline
+    , http-media
+    , lucid
+    , microlens
+    , microlens-th
+    , parsec
+    , servant
+    , servant-lucid
+    , servant-server
+    , text
+    , transformers
+    , turtle
+    , vector
+    , vty
+    , wai
+    , warp
 
 executable fundeps
-    import:           common-options
-    main-is:          Main.hs
-    hs-source-dirs:   fundeps
-    ghc-options:      -threaded -rtsopts -with-rtsopts=-N -Wall
-    build-depends:
-        fundeps,
-        turtle
+  import:         common-options
+  main-is:        Main.hs
+  hs-source-dirs: fundeps
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    , fundeps
+    , turtle
 
 executable fundeps-hs
-    import:           common-options
-    main-is:          Main.hs
-    hs-source-dirs:   fundeps-hs
-    ghc-options:      -threaded -rtsopts -with-rtsopts=-N
-    build-depends:
-        fundeps
+  import:         common-options
+  main-is:        Main.hs
+  hs-source-dirs: fundeps-hs
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:  fundeps
 
 test-suite fundeps-test
-    import:           common-options
-    type:             exitcode-stdio-1.0
-    main-is:          Spec.hs
-    hs-source-dirs:   test
-    other-modules:    Terminal.CommandsSpec
-    ghc-options:      -threaded -rtsopts -with-rtsopts=-N
-    build-depends:
-        fundeps,
-        graphviz,
-        hspec,
-        hspec-expectations
+  import:         common-options
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: test
+  other-modules:  Terminal.CommandsSpec
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    , fundeps
+    , graphviz
+    , hspec
+    , hspec-expectations

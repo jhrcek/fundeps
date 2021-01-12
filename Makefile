@@ -3,6 +3,7 @@ script=dist/main.js
 .PHONY: format
 format:
 	git ls-files '*.hs' | xargs fourmolu -i
+	cabal-fmt --inplace fundeps.cabal
 
 .PHONY: client
 client:
