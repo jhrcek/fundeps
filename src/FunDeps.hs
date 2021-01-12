@@ -1,4 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -13,7 +12,7 @@ import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.GraphViz.Commands as GvCmd
 import qualified TUI
 
-import Data.DepGraph (DepGraph (DepGraph, declToNode, graph))
+import Data.DepGraph (DepGraph (DepGraph, graph))
 import FunDeps.Server (runServer)
 import Settings (defaultSettings)
 import System.Environment (getArgs)
@@ -30,7 +29,7 @@ main = do
     args <- parseArgs
     case argsUiMode args of
         Cli -> TUI.terminalUI depGraph defaultSettings
-        HttpServer port -> runServer port (declToNode depGraph)
+        HttpServer port -> runServer port depGraph
 
 
 -- TODO proper args parsing
