@@ -47,15 +47,18 @@ library
   exposed-modules:
     Data.Declaration
     FunDeps
-    Terminal.Commands
+    TUI.Commands
 
   hs-source-dirs:  src
   other-modules:
+    Data.DepGraph
+    FunDeps.Graphviz
     FunDeps.Server
     Settings
-    Settings.Editor
-    Terminal
-    Terminal.Ansi
+    TUI
+    TUI.Ansi
+    TUI.Select
+    TUI.Settings.Editor
 
   if flag(withjs)
     build-depends: file-embed

@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Rank2Types #-}
 
-module Settings.Editor (editSettings) where
+module TUI.Settings.Editor (editSettings) where
 
 import qualified Graphics.Vty as V
 import qualified Settings as S

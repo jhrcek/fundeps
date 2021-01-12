@@ -1,7 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Terminal.Commands (
+module TUI.Commands (
     Command (..),
     QueryItem (..),
     CommandParseError (..),

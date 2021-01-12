@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Terminal (
+module TUI.Select (
     Item (..),
     pickAnItem,
 ) where

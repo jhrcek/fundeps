@@ -1,12 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Terminal.Ansi (
-    red,
-    green,
-    bold,
+module TUI.Ansi (
+    cliInfo,
+    cliWarn,
 ) where
 
+import qualified Data.Text.IO as Text
+
 import Data.Text (Text)
+
+
+cliInfo, cliWarn :: Text -> IO ()
+cliInfo msg = Text.putStrLn $ green msg
+cliWarn msg = Text.putStrLn $ red msg
 
 
 green :: Text -> Text
@@ -17,12 +23,7 @@ red :: Text -> Text
 red t = redCode <> t <> resetCode
 
 
-bold :: Text -> Text
-bold t = boldCode <> t <> resetCode
-
-
-greenCode, redCode, resetCode, boldCode :: Text
+greenCode, redCode, resetCode :: Text
 greenCode = "\ESC[32m"
 redCode = "\ESC[31m"
 resetCode = "\ESC[0m"
-boldCode = "\ESC[1m"

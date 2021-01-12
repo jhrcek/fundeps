@@ -1,6 +1,6 @@
-import qualified Terminal.CommandsSpec
+import qualified TUI.CommandsSpec
 import Test.Hspec
 
 
 main :: IO ()
-main = hspec Terminal.CommandsSpec.spec
+main = hspec TUI.CommandsSpec.spec
