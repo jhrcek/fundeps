@@ -13,15 +13,18 @@ module FunDeps.Server (runServer) where
 
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Graph.Inductive.Graph as G
+import qualified Data.GraphViz.Commands as Graphviz
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified FunDeps.Graphviz as GV
+import qualified Turtle
 
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (FromJSON, ToJSON, parseJSON, withObject, (.:))
 import Data.ByteString (ByteString)
 import Data.Declaration (Decl (..), FunctionName, ModuleName, PackageName)
 import Data.DepGraph (DepGraph (declToNode))
+import Data.List (intercalate)
 import Data.Map.Strict (Map)
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
@@ -29,11 +32,13 @@ import Lucid (Html, body_, charset_, doctype_, head_, html_, lang_, meta_, scrip
 import Network.HTTP.Media (MediaType, (//))
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (Port, run)
-import Servant.API (Get, Post, ReqBody, type (:<|>) (..), type (:>))
+import Servant.API (Get, Post, Raw, ReqBody, type (:<|>) (..), type (:>))
 import Servant.API.ContentTypes (Accept (contentType), JSON, MimeRender (..))
 import Servant.HTML.Lucid (HTML)
 import Servant.Server (Handler, Server, serve)
+import Servant.Server.StaticFiles (serveDirectoryWebApp)
 import Settings (Settings)
+import Turtle (encodeString, fp, (%), (<.>), (</>))
 
 
 #ifdef WithJS
@@ -47,6 +52,7 @@ elmApp = liftIO $ Data.ByteString.readFile "/home/jhrcek/Devel/github.com/jhrcek
 runServer :: Port -> DepGraph -> IO ()
 runServer port depGraph = do
     putStrLn $ "Running on http://localhost:" <> show port
+    Turtle.mktree imageDir
     run port $ app port depGraph
 
 
@@ -60,6 +66,7 @@ type FunDepsApi =
         :<|> "main.js" :> Get '[JS] ByteString
         :<|> "declarations" :> Get '[JSON] AllDecls
         :<|> "render-graph" :> ReqBody '[JSON] RenderGraphRequest :> Post '[JSON] Text
+        :<|> "static" :> Raw
 
 
 data RenderGraphRequest = RenderGraphRequest
@@ -111,14 +118,18 @@ funDepsHandlers port depGraph =
         :<|> elmApp
         :<|> pure decls
         :<|> renderGraphHandler depGraph
+        :<|> serveDirectoryWebApp (encodeString imageDir)
   where
     decls = toAllDecls $ declToNode depGraph
 
 
 renderGraphHandler :: DepGraph -> RenderGraphRequest -> Handler Text
 renderGraphHandler depGraph RenderGraphRequest{rgrSettings, rgrNodes} = do
-    liftIO $ GV.showDfsSubgraph GV.DrawInCanvas depGraph rgrSettings rgrNodes
-    pure $ Text.pack $ show rgrSettings <> show rgrNodes
+    utcTime <- Turtle.date
+    let graphFileName = (Turtle.decodeString . intercalate "_" . take 2 . words $ show utcTime) <.> "svg"
+        graphAction = GV.ExportToFile (imageDir </> graphFileName) Graphviz.Svg
+    liftIO $ GV.showDfsSubgraph graphAction depGraph rgrSettings rgrNodes
+    pure $ Turtle.format ("static/" % fp) graphFileName
 
 
 indexHtml :: Port -> Html ()
@@ -146,3 +157,7 @@ instance Accept JS where
 instance MimeRender JS ByteString where
     mimeRender :: Proxy JS -> ByteString -> LBS.ByteString
     mimeRender _ = LBS.fromStrict
+
+
+imageDir :: Turtle.FilePath
+imageDir = "/tmp/fundeps"

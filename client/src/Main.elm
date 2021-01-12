@@ -5,6 +5,7 @@ import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events as Event
 import Http
+import Json.Decode as Decode
 import Json.Encode as Encode
 import PackageForest exposing (..)
 import Settings exposing (Settings)
@@ -71,7 +72,7 @@ renderGraph portNumber settings packageForest =
                     [ ( "settings", Settings.encode settings )
                     , ( "nodes", Encode.list Encode.int <| PackageForest.selectedNodes packageForest )
                     ]
-        , expect = Http.expectString GotGraphImageUrl
+        , expect = Http.expectJson GotGraphImageUrl Decode.string
         }
 
 
