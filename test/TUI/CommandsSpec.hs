@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Terminal.CommandsSpec where
+module TUI.CommandsSpec (spec) where
 
 import Data.Declaration
 import qualified Data.GraphViz.Commands as Gv
-import Terminal.Commands (Command (..), CommandParseError (..), QueryItem (..), parseCommand)
+import TUI.Commands (Command (..), CommandParseError (..), QueryItem (..), parseCommand)
 import Test.Hspec
 
 
