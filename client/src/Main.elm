@@ -88,9 +88,11 @@ viewBody model =
     [ Html.map SettingsMsg <| Settings.view model.settings
     , Html.map PackageForestMsg <| PackageForest.view model.packageForest
     , Html.button [ Event.onClick GraphRequested ] [ Html.text "Render Graph" ]
-    , model.graphImageSrc
-        |> Maybe.map (\imgSrc -> Html.img [ Attr.alt "Dependency Graph", Attr.src imgSrc ] [])
-        |> Maybe.withDefault (Html.text "Graph Not Rendered yet")
+    , Html.div []
+        [ model.graphImageSrc
+            |> Maybe.map (\imgSrc -> Html.img [ Attr.alt "Dependency Graph", Attr.src imgSrc ] [])
+            |> Maybe.withDefault (Html.text "Graph Not Rendered yet")
+        ]
     ]
 
 
@@ -128,4 +130,6 @@ update msg model =
             ( { model | settings = Settings.update sMsg model.settings }, Cmd.none )
 
         GraphRequested ->
-            ( model, renderGraph model.flags model.settings model.packageForest )
+            ( { model | graphImageSrc = Nothing }
+            , renderGraph model.flags model.settings model.packageForest
+            )
