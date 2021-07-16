@@ -1,5 +1,6 @@
-resolver: nightly-2021-01-17
+resolver: lts-18.2
 packages:
 - .
 extra-deps:
 - servant-lucid-0.9.0.2@sha256:693278d574dba7313e931200118424762c02682bbc654e8866be4e6d1c73d816,1803
+

@@ -13,7 +13,7 @@ packages:
     hackage: servant-lucid-0.9.0.2@sha256:693278d574dba7313e931200118424762c02682bbc654e8866be4e6d1c73d816,1803
 snapshots:
 - completed:
-    size: 562473
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2021/1/17.yaml
-    sha256: 217ab7f1d59382a906fa39845ccf245759df4564846bcc4cfc859424a8f2d9e0
-  original: nightly-2021-01-17
+    size: 585392
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/2.yaml
+    sha256: 7abb45c0cc5eb349448b66d8753655542d45d387ad26970419282eab3d860724
+  original: lts-18.2
