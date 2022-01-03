@@ -1,6 +1,5 @@
-resolver: lts-18.2
+resolver: lts-18.21
 packages:
-- .
+  - .
 extra-deps:
-- servant-lucid-0.9.0.2@sha256:693278d574dba7313e931200118424762c02682bbc654e8866be4e6d1c73d816,1803
-
+  - servant-lucid-0.9.0.4@sha256:698db96903a145fdef40cc897f8790728642af917c37b941a98b2da872b65f08,1787
