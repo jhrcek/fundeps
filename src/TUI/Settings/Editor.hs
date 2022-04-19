@@ -7,49 +7,49 @@ module TUI.Settings.Editor (editSettings) where
 import qualified Graphics.Vty as V
 import qualified Settings as S
 
-import Brick (
-    App (..),
-    AttrName,
-    BrickEvent (..),
-    EventM,
-    Next,
-    Padding (..),
-    Widget,
-    attrName,
-    clickable,
-    continue,
-    customMain,
-    hLimit,
-    halt,
-    padLeft,
-    padTop,
-    str,
-    withAttr,
-    (<=>),
- )
+import Brick
+    ( App (..)
+    , AttrName
+    , BrickEvent (..)
+    , EventM
+    , Next
+    , Padding (..)
+    , Widget
+    , attrName
+    , clickable
+    , continue
+    , customMain
+    , hLimit
+    , halt
+    , padLeft
+    , padTop
+    , str
+    , withAttr
+    , (<=>)
+    )
 import Brick.AttrMap (AttrMap, attrMap)
 import Brick.Focus (focusRingCursor)
-import Brick.Forms (
-    Form,
-    FormFieldState,
-    checkboxCustomField,
-    focusedFormInputAttr,
-    formFocus,
-    formState,
-    handleFormEvent,
-    invalidFormInputAttr,
-    newForm,
-    radioField,
-    renderForm,
-    (@@=),
- )
+import Brick.Forms
+    ( Form
+    , FormFieldState
+    , checkboxCustomField
+    , focusedFormInputAttr
+    , formFocus
+    , formState
+    , handleFormEvent
+    , invalidFormInputAttr
+    , newForm
+    , radioField
+    , renderForm
+    , (@@=)
+    )
 import Brick.Util (on)
 import Brick.Widgets.Border (border, borderWithLabel)
 import Brick.Widgets.Center (center)
 import Brick.Widgets.Edit (editAttr, editFocusedAttr)
-import Data.Declaration (
-    NodeFormat (Function, ModuleFunction, PackageModuleFunction),
- )
+import Data.Declaration
+    ( NodeFormat (Function, ModuleFunction, PackageModuleFunction)
+    )
 import Data.GraphViz.Attributes.Complete (RankDir (..))
 import Data.GraphViz.Commands (GraphvizCommand (Circo, Dot, Neato, TwoPi))
 import Data.Text (Text)

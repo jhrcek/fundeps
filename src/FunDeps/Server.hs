@@ -49,6 +49,7 @@ import qualified Data.ByteString (readFile)
 elmApp = liftIO $ Data.ByteString.readFile "/home/jhrcek/Devel/github.com/jhrcek/fundeps/client/dist/main.js"
 #endif
 
+
 runServer :: Port -> DepGraph -> IO ()
 runServer port depGraph = do
     putStrLn $ "Running on http://localhost:" <> show port

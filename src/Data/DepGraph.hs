@@ -1,13 +1,14 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.DepGraph (
-    DepGraph (..),
-    ClusterLabel (..),
-    Graph,
-    loadEdgesOrDie,
-    buildDepGraph,
-) where
+module Data.DepGraph
+    ( DepGraph (..)
+    , ClusterLabel (..)
+    , Graph
+    , loadEdgesOrDie
+    , buildDepGraph
+    )
+where
 
 import qualified Control.Foldl as Fold
 import qualified Control.Monad.Trans.State.Strict as State
@@ -31,15 +32,15 @@ import Prelude hiding (FilePath)
 
 
 data DepGraph = DepGraph
-    { -- | map declarations to the node ID used in the graph
-      -- Invariant: function names in this map are exactly those that occur in the _declToNode
-      declToNode :: Map Decl G.Node
-    , -- | Map name of function to the set of declarations that have this function name
-      functionNameToNodes :: Map FunctionName (Set Decl)
+    { declToNode :: Map Decl G.Node
+    -- ^ map declarations to the node ID used in the graph
+    -- Invariant: function names in this map are exactly those that occur in the _declToNode
+    , functionNameToNodes :: Map FunctionName (Set Decl)
+    -- ^ Map name of function to the set of declarations that have this function name
     , graph :: Graph
-    , -- | to distinguish between this and 3rd party packages
-      -- TODO when loading stuff from multi-package hs project there might not be a single "current" package
-      currentPackage :: PackageName
+    , currentPackage :: PackageName
+    -- ^ to distinguish between this and 3rd party packages
+    -- TODO when loading stuff from multi-package hs project there might not be a single "current" package
     }
     deriving stock (Show)
 

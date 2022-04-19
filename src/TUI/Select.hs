@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module TUI.Select (
-    Item (..),
-    pickAnItem,
-) where
+module TUI.Select
+    ( Item (..)
+    , pickAnItem
+    )
+where
 
 import qualified Brick.AttrMap as Attr
 import qualified Brick.Main as Brick

@@ -3,9 +3,10 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module FunDeps (
-    main,
-) where
+module FunDeps
+    ( main
+    )
+where
 
 import qualified Data.DepGraph as DG
 import qualified Data.Graph.Inductive.Graph as G

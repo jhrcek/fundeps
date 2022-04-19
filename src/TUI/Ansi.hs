@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module TUI.Ansi (
-    cliInfo,
-    cliWarn,
-) where
+module TUI.Ansi
+    ( cliInfo
+    , cliWarn
+    )
+where
 
 import qualified Data.Text.IO as Text
 

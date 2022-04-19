@@ -1,14 +1,15 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.Declaration (
-    Decl (..),
-    PackageName (..),
-    ModuleName (..),
-    FunctionName (..),
-    NodeFormat (..),
-    formatNode,
-) where
+module Data.Declaration
+    ( Decl (..)
+    , PackageName (..)
+    , ModuleName (..)
+    , FunctionName (..)
+    , NodeFormat (..)
+    , formatNode
+    )
+where
 
 import qualified Data.Text as Text
 

@@ -1,11 +1,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module FunDeps.Graphviz (
-    GraphAction (..),
-    showDfsSubgraph,
-    runGraphAction,
-) where
+module FunDeps.Graphviz
+    ( GraphAction (..)
+    , showDfsSubgraph
+    , runGraphAction
+    )
+where
 
 import qualified Data.Graph.Inductive.Graph as G
 import qualified Data.Graph.Inductive.Query.DFS as DFS
@@ -19,11 +20,11 @@ import Control.Concurrent (forkIO)
 import Control.Monad (guard, unless, void, when)
 import Data.Containers.ListUtils (nubOrd)
 import Data.Declaration (Decl (..), ModuleName (..), NodeFormat (..), PackageName (..), formatNode)
-import Data.DepGraph (
-    ClusterLabel (..),
-    DepGraph (DepGraph, currentPackage, graph),
-    Graph,
- )
+import Data.DepGraph
+    ( ClusterLabel (..)
+    , DepGraph (DepGraph, currentPackage, graph)
+    , Graph
+    )
 import Data.Foldable (traverse_)
 import Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir), Label (StrLabel))
 import Data.Maybe (mapMaybe)

@@ -4,20 +4,21 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Settings (
-    DependencyMode (..),
-    Settings (..),
-    clusterByModule,
-    clusterByPackage,
-    defaultSettings,
-    rankDir,
-    transitiveReduction,
-    nodeFormat,
-    allowMultiEdges,
-    dependencyMode,
-    graphvizCommand,
-    includeExternalPackages,
-) where
+module Settings
+    ( DependencyMode (..)
+    , Settings (..)
+    , clusterByModule
+    , clusterByPackage
+    , defaultSettings
+    , rankDir
+    , transitiveReduction
+    , nodeFormat
+    , allowMultiEdges
+    , dependencyMode
+    , graphvizCommand
+    , includeExternalPackages
+    )
+where
 
 import Data.Aeson (FromJSON (parseJSON), withObject, withText, (.:))
 import Data.Declaration (NodeFormat (Function))

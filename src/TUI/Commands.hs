@@ -1,15 +1,16 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module TUI.Commands (
-    Command (..),
-    QueryItem (..),
-    CommandParseError (..),
-    parseCommand,
-    showHelp,
-    typeHelp,
-    commandSuggestions,
-) where
+module TUI.Commands
+    ( Command (..)
+    , QueryItem (..)
+    , CommandParseError (..)
+    , parseCommand
+    , showHelp
+    , typeHelp
+    , commandSuggestions
+    )
+where
 
 import qualified Data.GraphViz.Commands as Gv
 import qualified Data.Text as Text
