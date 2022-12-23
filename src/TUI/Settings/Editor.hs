@@ -4,20 +4,15 @@
 
 module TUI.Settings.Editor (editSettings) where
 
-import qualified Graphics.Vty as V
-import qualified Settings as S
-
 import Brick
     ( App (..)
     , AttrName
     , BrickEvent (..)
     , EventM
-    , Next
     , Padding (..)
     , Widget
     , attrName
     , clickable
-    , continue
     , customMain
     , hLimit
     , halt
@@ -54,9 +49,11 @@ import Data.GraphViz.Attributes.Complete (RankDir (..))
 import Data.GraphViz.Commands (GraphvizCommand (Circo, Dot, Neato, TwoPi))
 import Data.Text (Text)
 import Data.Void (Void)
+import Graphics.Vty qualified as V
 import Graphics.Vty.Attributes (black, blue, defAttr, red, white, yellow)
 import Lens.Micro (Lens')
 import Settings (Settings)
+import Settings qualified as S
 
 
 type FormState = Form Settings Void Name
@@ -169,17 +166,17 @@ app =
         { appDraw = draw
         , appHandleEvent = handleEvent
         , appChooseCursor = focusRingCursor formFocus
-        , appStartEvent = return
+        , appStartEvent = pure ()
         , appAttrMap = const theMap
         }
 
 
-handleEvent :: FormState -> BrickEvent Name Void -> EventM Name (Next FormState)
-handleEvent s event = case event of
-    MouseDown SaveButton _ _ _ -> halt s
-    VtyEvent (V.EvKey V.KEnter _) -> halt s
-    VtyEvent V.EvResize{} -> continue s
-    _ -> handleFormEvent event s >>= continue
+handleEvent :: BrickEvent Name Void -> EventM Name FormState ()
+handleEvent event = case event of
+    MouseDown SaveButton _ _ _ -> halt
+    VtyEvent (V.EvKey V.KEnter _) -> halt
+    VtyEvent V.EvResize{} -> pure ()
+    _ -> handleFormEvent event
 
 
 editSettings :: Settings -> IO Settings

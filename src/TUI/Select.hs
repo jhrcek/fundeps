@@ -6,21 +6,20 @@ module TUI.Select
     )
 where
 
-import qualified Brick.AttrMap as Attr
-import qualified Brick.Main as Brick
-import qualified Brick.Types as T
-import qualified Brick.Widgets.Border as Border
-import qualified Brick.Widgets.Center as C
-import qualified Brick.Widgets.List as L
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Vector as Vec
-import qualified Graphics.Vty as V
-
+import Brick.AttrMap qualified as Attr
+import Brick.Main qualified as Brick
 import Brick.Types (Widget)
+import Brick.Types qualified as T
 import Brick.Util (on)
+import Brick.Widgets.Border qualified as Border
+import Brick.Widgets.Center qualified as C
 import Brick.Widgets.Core (hLimit, str, vLimit, withAttr)
+import Brick.Widgets.List qualified as L
+import Data.List.NonEmpty qualified as NE
+import Data.Vector qualified as Vec
 import Data.Void (Void)
-import Lens.Micro ((^.))
+import Graphics.Vty qualified as V
+import Lens.Micro.Mtl (use)
 
 
 class Item a where
@@ -41,16 +40,17 @@ appDraw l = [C.center box]
             $ L.renderList listDrawElement True l
 
 
-appHandleEvent :: Model a -> T.BrickEvent () Void -> T.EventM () (T.Next (Model a))
-appHandleEvent l (T.VtyEvent e) =
+appHandleEvent :: T.BrickEvent () Void -> T.EventM () (Model a) ()
+appHandleEvent (T.VtyEvent e) =
     case e of
-        V.EvKey V.KEnter [] ->
-            case l ^. L.listSelectedL of
-                Nothing -> Brick.continue l
-                Just _ -> Brick.halt l
-        V.EvKey V.KEsc [] -> Brick.halt l
-        ev -> L.handleListEvent ev l >>= Brick.continue
-appHandleEvent l _ = Brick.continue l
+        V.EvKey V.KEnter [] -> do
+            s <- use L.listSelectedL
+            case s of
+                Nothing -> pure ()
+                Just _ -> Brick.halt
+        V.EvKey V.KEsc [] -> Brick.halt
+        ev -> L.handleListEvent ev
+appHandleEvent _ = pure ()
 
 
 listDrawElement :: Item a => Bool -> a -> Widget ()
@@ -78,7 +78,7 @@ pickItemApp =
         { Brick.appDraw = appDraw
         , Brick.appChooseCursor = Brick.showFirstCursor
         , Brick.appHandleEvent = appHandleEvent
-        , Brick.appStartEvent = return
+        , Brick.appStartEvent = pure ()
         , Brick.appAttrMap = const appAttrMap
         }
 

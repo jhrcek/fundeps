@@ -12,22 +12,21 @@ module TUI.Commands
     )
 where
 
-import qualified Data.GraphViz.Commands as Gv
-import qualified Data.Text as Text
-import qualified Data.Text.IO as Text
-import qualified Text.Parsec as Parsec
-import qualified Text.Parsec.Char as P
-import qualified Text.Parsec.Combinator as P
-import qualified Turtle
-
 import Data.Bifunctor (first)
 import Data.Char (isAlphaNum, isSpace)
 import Data.Declaration (FunctionName (..), ModuleName (..), PackageName (..))
 import Data.Functor (($>))
+import Data.GraphViz.Commands qualified as Gv
 import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Text.IO qualified as Text
 import Text.Parsec (parserFail, (<|>))
+import Text.Parsec qualified as Parsec
+import Text.Parsec.Char qualified as P
+import Text.Parsec.Combinator qualified as P
 import Text.Parsec.Text (Parser)
 import Turtle (FilePath)
+import Turtle qualified
 import Prelude hiding (FilePath)
 
 

@@ -5,29 +5,28 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-
+#ifdef WithJS
+{-# LANGUAGE TemplateHaskell #-}
+#endif
 module FunDeps.Server (runServer) where
-
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Graph.Inductive.Graph as G
-import qualified Data.GraphViz.Commands as Graphviz
-import qualified Data.Map.Strict as Map
-import qualified Data.Text as Text
-import qualified FunDeps.Graphviz as GV
-import qualified Turtle
 
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (FromJSON, ToJSON, parseJSON, withObject, (.:))
 import Data.ByteString (ByteString)
+import Data.ByteString.Lazy qualified as LBS
 import Data.Declaration (Decl (..), FunctionName, ModuleName, PackageName)
 import Data.DepGraph (DepGraph (declToNode))
+import Data.Graph.Inductive.Graph qualified as G
+import Data.GraphViz.Commands qualified as Graphviz
 import Data.List (intercalate)
 import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Proxy (Proxy (..))
 import Data.Text (Text)
+import Data.Text qualified as Text
+import FunDeps.Graphviz qualified as GV
 import Lucid (Html, body_, charset_, doctype_, head_, html_, lang_, meta_, script_, src_, title_)
 import Network.HTTP.Media (MediaType, (//))
 import Network.Wai (Application)
@@ -39,6 +38,7 @@ import Servant.Server (Handler, Server, serve)
 import Servant.Server.StaticFiles (serveDirectoryWebApp)
 import Settings (Settings)
 import Turtle (encodeString, fp, (%), (<.>), (</>))
+import Turtle qualified
 
 
 #ifdef WithJS

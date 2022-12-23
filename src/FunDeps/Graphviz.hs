@@ -8,14 +8,6 @@ module FunDeps.Graphviz
     )
 where
 
-import qualified Data.Graph.Inductive.Graph as G
-import qualified Data.Graph.Inductive.Query.DFS as DFS
-import qualified Data.GraphViz as GV
-import qualified Data.GraphViz.Algorithms
-import qualified Data.GraphViz.Commands as GvCmd
-import qualified Data.GraphViz.Types as GvTypes
-import qualified Data.Text.Lazy as LText
-
 import Control.Concurrent (forkIO)
 import Control.Monad (guard, unless, void, when)
 import Data.Containers.ListUtils (nubOrd)
@@ -26,9 +18,16 @@ import Data.DepGraph
     , Graph
     )
 import Data.Foldable (traverse_)
+import Data.Graph.Inductive.Graph qualified as G
+import Data.Graph.Inductive.Query.DFS qualified as DFS
+import Data.GraphViz qualified as GV
+import Data.GraphViz.Algorithms qualified
 import Data.GraphViz.Attributes.Complete (Attribute (Label, RankDir), Label (StrLabel))
+import Data.GraphViz.Commands qualified as GvCmd
+import Data.GraphViz.Types qualified as GvTypes
 import Data.Maybe (mapMaybe)
 import Data.Monoid (Endo (..))
+import Data.Text.Lazy qualified as LText
 import Settings (DependencyMode (..), Settings (..))
 import TUI.Ansi (cliWarn)
 import Turtle (FilePath, d, encodeString, fp, printf, (%))

@@ -6,9 +6,8 @@ module TUI.Ansi
     )
 where
 
-import qualified Data.Text.IO as Text
-
 import Data.Text (Text)
+import Data.Text.IO qualified as Text
 
 
 cliInfo, cliWarn :: Text -> IO ()

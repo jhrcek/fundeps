@@ -11,10 +11,9 @@ module Data.Declaration
     )
 where
 
-import qualified Data.Text as Text
-
 import Data.Aeson (FromJSON (parseJSON), ToJSON, ToJSONKey, withText)
 import Data.Text (Text, unpack)
+import Data.Text qualified as Text
 import TUI.Select (Item (showItem))
 import Text.Read (readMaybe)
 

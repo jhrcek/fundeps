@@ -8,15 +8,14 @@ module FunDeps
     )
 where
 
-import qualified Data.DepGraph as DG
-import qualified Data.Graph.Inductive.Graph as G
-import qualified Data.GraphViz.Commands as GvCmd
-import qualified TUI
-
 import Data.DepGraph (DepGraph (DepGraph, graph))
+import Data.DepGraph qualified as DG
+import Data.Graph.Inductive.Graph qualified as G
+import Data.GraphViz.Commands qualified as GvCmd
 import FunDeps.Server (runServer)
 import Settings (defaultSettings)
 import System.Environment (getArgs)
+import TUI qualified
 import Turtle (d, printf, (%))
 import Prelude hiding (FilePath)
 

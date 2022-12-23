@@ -10,23 +10,22 @@ module Data.DepGraph
     )
 where
 
-import qualified Control.Foldl as Fold
-import qualified Control.Monad.Trans.State.Strict as State
-import qualified Data.Graph.Inductive.Graph as G
-import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import qualified Data.Text as Text
-
 import Control.Applicative (empty)
+import Control.Foldl qualified as Fold
 import Control.Monad.Trans.State.Strict (State)
+import Control.Monad.Trans.State.Strict qualified as State
 import Data.Declaration (Decl (Decl, declPackage), FunctionName (..), ModuleName (..), PackageName (..))
 import Data.Foldable (traverse_)
+import Data.Graph.Inductive.Graph qualified as G
 import Data.Graph.Inductive.PatriciaTree (Gr)
 import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty qualified as NonEmpty
 import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.Text qualified as Text
 import Turtle (Line, Shell, die, fold, inshell, lineToText, select)
 import Prelude hiding (FilePath)
 

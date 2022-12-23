@@ -3,29 +3,28 @@
 
 module TUI (terminalUI) where
 
-import qualified Data.Graph.Inductive.Graph as G
-import qualified Data.List as List
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import qualified Data.Text as Text
-import qualified Data.Text.IO as Text
-import qualified System.Console.Haskeline as Repl
-import qualified TUI.Commands as Cmd
-import qualified TUI.Settings.Editor
-
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.Containers.ListUtils (nubOrd)
 import Data.Declaration (Decl (..), FunctionName (..), NodeFormat (..), formatNode)
 import Data.DepGraph (DepGraph (..))
 import Data.Foldable (for_)
+import Data.Graph.Inductive.Graph qualified as G
+import Data.List qualified as List
 import Data.List.NonEmpty (NonEmpty ((:|)))
+import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Text.IO qualified as Text
 import FunDeps.Graphviz (GraphAction (..), runGraphAction, showDfsSubgraph)
 import Settings (Settings (..))
+import System.Console.Haskeline qualified as Repl
 import TUI.Ansi (cliInfo, cliWarn)
 import TUI.Commands (QueryItem (..))
+import TUI.Commands qualified as Cmd
 import TUI.Select (pickAnItem)
+import TUI.Settings.Editor qualified
 import Prelude hiding (FilePath)
 
 
