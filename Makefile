@@ -2,7 +2,7 @@ script=dist/main.js
 
 .PHONY: format
 format:
-	git ls-files '*.hs' | xargs fourmolu -i
+	git ls-files '*.hs' | xargs fourmolu -i --unsafe
 	cabal-fmt --inplace fundeps.cabal
 
 .PHONY: client

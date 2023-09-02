@@ -3,7 +3,7 @@
 module TUI.CommandsSpec (spec) where
 
 import Data.Declaration
-import qualified Data.GraphViz.Commands as Gv
+import Data.GraphViz.Commands qualified as Gv
 import TUI.Commands (Command (..), CommandParseError (..), QueryItem (..), parseCommand)
 import Test.Hspec
 

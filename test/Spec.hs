@@ -1,4 +1,4 @@
-import qualified TUI.CommandsSpec
+import TUI.CommandsSpec qualified
 import Test.Hspec
 
 

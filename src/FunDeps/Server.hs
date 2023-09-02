@@ -7,6 +7,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
+
 #ifdef WithJS
 {-# LANGUAGE TemplateHaskell #-}
 #endif

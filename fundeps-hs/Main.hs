@@ -1,6 +1,6 @@
 module Main (main) where
 
-import qualified FunDeps
+import FunDeps qualified
 
 
 main :: IO ()
