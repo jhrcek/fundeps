@@ -92,7 +92,7 @@ exportCommand = do
 
 
 exportFile :: Parser FilePath
-exportFile = Turtle.decodeString <$> P.many1 (P.satisfy (not . isSpace)) <* P.spaces
+exportFile = P.many1 (P.satisfy (not . isSpace)) <* P.spaces
 
 
 queryItems :: Parser [QueryItem]

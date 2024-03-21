@@ -17,7 +17,7 @@ description:
 category:           Web
 build-type:         Simple
 extra-source-files: README.md
-tested-with:        GHC ==9.2.8
+tested-with:        GHC ==9.6.4
 
 source-repository head
   type:     git
@@ -87,6 +87,7 @@ library
     , turtle
     , vector
     , vty
+    , vty-unix
     , wai
     , warp
 
@@ -117,4 +118,3 @@ test-suite fundeps-test
     , fundeps
     , graphviz
     , hspec
-    , hspec-expectations

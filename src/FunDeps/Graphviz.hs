@@ -30,7 +30,7 @@ import Data.Monoid (Endo (..))
 import Data.Text.Lazy qualified as LText
 import Settings (DependencyMode (..), Settings (..))
 import TUI.Ansi (cliWarn)
-import Turtle (FilePath, d, encodeString, fp, printf, (%))
+import Turtle (FilePath, d, fp, printf, (%))
 import Prelude hiding (FilePath)
 
 
@@ -48,7 +48,7 @@ executeGraphAction gvCommand graph action = case action of
                 gvCommand
                 graph
                 gvOutput
-                (Turtle.encodeString file)
+                file
 
 
 -- TODO rename this as it's not always doing DFS

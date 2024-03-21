@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
+
 #ifdef WithJS
 {-# LANGUAGE TemplateHaskell #-}
 #endif
@@ -38,7 +39,7 @@ import Servant.HTML.Lucid (HTML)
 import Servant.Server (Handler, Server, serve)
 import Servant.Server.StaticFiles (serveDirectoryWebApp)
 import Settings (Settings)
-import Turtle (encodeString, fp, (%), (<.>), (</>))
+import Turtle (fp, (%), (<.>), (</>))
 import Turtle qualified
 
 
@@ -80,8 +81,8 @@ data RenderGraphRequest = RenderGraphRequest
 instance FromJSON RenderGraphRequest where
     parseJSON = withObject "RenderGraphRequest" $ \o ->
         RenderGraphRequest
-            <$> o .: "settings"
-            <*> o .: "nodes"
+            <$> (o .: "settings")
+            <*> (o .: "nodes")
 
 
 type DeclMap = Map PackageName (Map ModuleName (Map FunctionName G.Node))
@@ -120,7 +121,7 @@ funDepsHandlers port depGraph =
         :<|> elmApp
         :<|> pure decls
         :<|> renderGraphHandler depGraph
-        :<|> serveDirectoryWebApp (encodeString imageDir)
+        :<|> serveDirectoryWebApp imageDir
   where
     decls = toAllDecls $ declToNode depGraph
 
@@ -128,7 +129,7 @@ funDepsHandlers port depGraph =
 renderGraphHandler :: DepGraph -> RenderGraphRequest -> Handler Text
 renderGraphHandler depGraph RenderGraphRequest{rgrSettings, rgrNodes} = do
     utcTime <- Turtle.date
-    let graphFileName = (Turtle.decodeString . intercalate "_" . take 2 . words $ show utcTime) <.> "svg"
+    let graphFileName = (intercalate "_" . take 2 . words $ show utcTime) <.> "svg"
         graphAction = GV.ExportToFile (imageDir </> graphFileName) Graphviz.Svg
     liftIO $ GV.showDfsSubgraph graphAction depGraph rgrSettings rgrNodes
     pure $ Turtle.format ("static/" % fp) graphFileName

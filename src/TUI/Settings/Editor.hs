@@ -42,15 +42,14 @@ import Brick.Util (on)
 import Brick.Widgets.Border (border, borderWithLabel)
 import Brick.Widgets.Center (center)
 import Brick.Widgets.Edit (editAttr, editFocusedAttr)
-import Data.Declaration
-    ( NodeFormat (Function, ModuleFunction, PackageModuleFunction)
-    )
+import Data.Declaration (NodeFormat (Function, ModuleFunction, PackageModuleFunction))
 import Data.GraphViz.Attributes.Complete (RankDir (..))
 import Data.GraphViz.Commands (GraphvizCommand (Circo, Dot, Neato, TwoPi))
 import Data.Text (Text)
 import Data.Void (Void)
 import Graphics.Vty qualified as V
 import Graphics.Vty.Attributes (black, blue, defAttr, red, white, yellow)
+import Graphics.Vty.Platform.Unix qualified as V
 import Lens.Micro (Lens')
 import Settings (Settings)
 import Settings qualified as S
@@ -182,7 +181,7 @@ handleEvent event = case event of
 editSettings :: Settings -> IO Settings
 editSettings settings = do
     let buildVty = do
-            v <- V.mkVty =<< V.standardIOConfig
+            v <- V.mkVty V.defaultConfig
             V.setMode (V.outputIface v) V.Mouse True
             return v
         form0 = mkForm settings
