@@ -180,8 +180,17 @@ encodeGraphvizCommand =
 
 
 encodeNodeFormat : NodeFormat -> Value
-encodeNodeFormat =
-    Encode.string << showNodeFormat
+encodeNodeFormat nf =
+    Encode.string <|
+        case nf of
+            PackageModuleFunction ->
+                "PackageModuleFunction"
+
+            ModuleFunction ->
+                "ModuleFunction"
+
+            Function ->
+                "Function"
 
 
 encodeRankDir : RankDir -> Value
